@@ -13,6 +13,9 @@
 IMG_TMP=$(mktemp -d -p ${TARGET_IMG})
 SAVE_ERROR="${IMG_TMP}/save_error"
 
+# WSL2 optimization: avoid global sync which hangs flushing 9p/drvfs Windows mounts
+sync() { command sync -f "${IMG_TMP:-.}" 2>/dev/null || true; }
+
 if [ -z "${SYSTEM_SIZE}" -o -z "${SYSTEM_PART_START}" ]; then
   echo "mkimage: SYSTEM_SIZE and SYSTEM_PART_START must be configured!"
   exit 1

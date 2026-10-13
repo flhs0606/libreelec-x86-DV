@@ -103,7 +103,7 @@
            <control type="toggle" />
          </setting>
 +        <setting id="dvbridge.fastchroma" type="boolean" label="40904" help="40905">
-+          <requirement>HAVE_DVBRIDGE</requirement><level>2</level><default>false</default>
++          <requirement>HAVE_DVBRIDGE</requirement><level>2</level><default>true</default>
 +          <control type="toggle" />
 +        </setting>
        </group>
@@ -886,7 +886,7 @@
    int method{0}, preset{0}, panel{0}, gamut{0};
    double peak{0};
 +  bool optimizedDV{true};
-+  bool fastChroma{false};
++  bool fastChroma{true};
 +  bool processingOptimizations{false};
    uint64_t revision{1};
  

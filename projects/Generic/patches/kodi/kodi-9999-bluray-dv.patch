@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619ecc613c0c
 --- /dev/null
 +++ b/xbmc/cores/VideoPlayer/DVDDemuxers/BlurayDovi.h
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,266 @@
 +/* SPDX-License-Identifier: GPL-2.0-or-later */
 +#pragma once
 +
@@ -14,6 +14,7 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +#include <map>
 +#include <memory>
 +#include <vector>
++#include "utils/log.h"
 +extern "C"
 +{
 +#include <libavcodec/packet.h>
@@ -29,114 +30,245 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +  {
 +    m_base.clear();
 +    m_enhancement.clear();
-+    m_rpu.clear();
 +    m_bytes = 0;
++    m_lastBasePts = AV_NOPTS_VALUE;
++    m_lastElPts = AV_NOPTS_VALUE;
++    m_lastElNalType = -1;
++    m_hasLayer = false;
 +  }
 +
 +  bool Push(const AVPacket* packet, bool enhancement)
 +  {
-+    if (!packet || packet->pts == AV_NOPTS_VALUE || packet->size <= 0 ||
-+        static_cast<size_t>(packet->size) > MAX_BYTES - m_bytes)
-+      return false;
++    if (!packet || packet->size <= 0)
++      return true;
++
++    // Safety memory ceiling (128MB)
++    if (m_bytes + static_cast<size_t>(packet->size) > MAX_BYTES)
++      DropOldest();
++
 +    if (!enhancement)
 +    {
++      // If continuation BL packet without PTS, reassemble into back of m_base
++      if (packet->pts == AV_NOPTS_VALUE)
++      {
++        if (!m_base.empty())
++        {
++          auto& back = m_base.back();
++          int oldSize = back->size;
++          if (av_grow_packet(back.get(), packet->size) >= 0)
++          {
++            std::memcpy(back->data + oldSize, packet->data, packet->size);
++            m_bytes += packet->size;
++          }
++        }
++        return true;
++      }
++
 +      if (m_base.size() >= MAX_PACKETS)
-+        return false;
++        DropOldest();
++
 +      Packet owned(av_packet_clone(packet));
 +      if (!owned)
-+        return false;
++        return true;
++
++      // Seamless branching backward time jump detection (> 2.0s negative jump)
++      if (m_lastBasePts != AV_NOPTS_VALUE && packet->pts < m_lastBasePts - 90000 * 2)
++      {
++        for (const auto& [p, u] : m_enhancement)
++          m_bytes -= (u.layer.size() + u.rpu.size());
++        m_enhancement.clear();
++        m_lastElNalType = -1;
++      }
++      m_lastBasePts = packet->pts;
++
 +      m_bytes += packet->size;
 +      m_base.push_back(std::move(owned));
 +      return true;
 +    }
-+    if (m_enhancement.size() >= MAX_PACKETS || m_rpu.size() >= MAX_PACKETS ||
-+        m_rpu.contains(packet->pts))
-+      return false;
++
++    // Enhancement layer packet
++    int64_t pts = packet->pts;
++    if (pts == AV_NOPTS_VALUE)
++    {
++      if (m_lastElPts != AV_NOPTS_VALUE)
++        pts = m_lastElPts;
++      else
++        return true;
++    }
++    else
++    {
++      m_lastElPts = packet->pts;
++    }
 +
 +    std::vector<uint8_t> layer, rpu;
 +    auto begin = Start(packet->data, packet->size, 0);
-+    if (begin[0] != 0)
-+      return false;
++
++    // If packet starts without NAL start code, append payload chunk to previous NAL
++    if (begin[0] > 0 && m_lastElNalType != -1)
++    {
++      auto& dest = (m_lastElNalType == 62) ? rpu : layer;
++      dest.insert(dest.end(), packet->data, packet->data + begin[0]);
++    }
++
 +    while (begin[0] < packet->size)
 +    {
 +      const auto next = Start(packet->data, packet->size, begin[1]);
 +      const int size = next[0] - begin[1];
-+      if (size < 2 || packet->data[begin[1]] & 0x80 || !(packet->data[begin[1]+1] & 7))
-+        return false;
-+      const int type = (packet->data[begin[1]] >> 1) & 63;
-+      auto& destination = type == 62 ? rpu : layer;
-+      destination.insert(destination.end(), {0, 0, 0, 1});
-+      if (type != 62)
-+        destination.insert(destination.end(), {0x7e, 1});
-+      destination.insert(destination.end(), packet->data + begin[1], packet->data + next[0]);
-+      if (layer.size() + rpu.size() > MAX_BYTES - m_bytes)
-+        return false;
++      if (size >= 2 && !(packet->data[begin[1]] & 0x80) && (packet->data[begin[1] + 1] & 7))
++      {
++        const int type = (packet->data[begin[1]] >> 1) & 63;
++        m_lastElNalType = type;
++        auto& destination = (type == 62) ? rpu : layer;
++        destination.insert(destination.end(), {0, 0, 0, 1});
++        if (type != 62)
++          destination.insert(destination.end(), {0x7e, 1});
++        destination.insert(destination.end(), packet->data + begin[1], packet->data + next[0]);
++      }
 +      begin = next;
 +    }
-+    if (layer.empty() || rpu.empty())
-+      return false;
-+    Packet owned(av_packet_alloc());
-+    if (!owned || av_new_packet(owned.get(), layer.size()) < 0)
-+      return false;
-+    std::memcpy(owned->data, layer.data(), layer.size());
-+    m_bytes += layer.size() + rpu.size();
-+    m_enhancement.push_back(std::move(owned));
-+    m_rpu.emplace(packet->pts, std::move(rpu));
++
++    if (!layer.empty())
++      m_hasLayer = true;
++
++    if (!layer.empty() || !rpu.empty())
++    {
++      auto& unit = m_enhancement[pts];
++      if (!layer.empty())
++        unit.layer.insert(unit.layer.end(), layer.begin(), layer.end());
++      if (!rpu.empty())
++        unit.rpu.insert(unit.rpu.end(), rpu.begin(), rpu.end());
++
++      m_bytes += layer.size() + rpu.size();
++    }
++
 +    return true;
 +  }
 +
 +  int Take(AVPacket* output)
 +  {
-+    if (m_base.empty() || m_enhancement.empty())
++    if (m_base.empty())
 +      return AVERROR(EAGAIN);
-+    auto rpu = m_rpu.find(m_base.front()->pts);
-+    if (rpu == m_rpu.end())
++
++    auto& basePkt = m_base.front();
++    const int64_t targetPts = basePkt->pts;
++
++    // Discard any orphan packets without PTS to prevent decoder corruption
++    if (targetPts == AV_NOPTS_VALUE)
++    {
++      m_bytes -= basePkt->size;
++      m_base.pop_front();
 +      return AVERROR(EAGAIN);
-+    const auto& layer = m_enhancement.front();
-+    const int baseSize = m_base.front()->size;
-+    const size_t extra = layer->size + rpu->second.size();
-+    if (extra > MAX_BYTES - static_cast<size_t>(baseSize))
-+      return AVERROR_INVALIDDATA;
-+    Packet joined(av_packet_clone(m_base.front().get()));
-+    if (!joined || av_grow_packet(joined.get(), extra) < 0)
-+      return AVERROR(ENOMEM);
-+    std::memcpy(joined->data + baseSize, layer->data, layer->size);
-+    std::memcpy(joined->data + baseSize + layer->size, rpu->second.data(), rpu->second.size());
-+    m_bytes -= baseSize + extra;
-+    av_packet_move_ref(output, joined.get());
-+    m_base.pop_front();
-+    m_enhancement.pop_front();
-+    m_rpu.erase(rpu);
-+    return 0;
++    }
++
++    // 1. Exact PTS matching (BL and EL share identical 90kHz PTS in Blu-ray M2TS)
++    auto it = m_enhancement.find(targetPts);
++    if (it != m_enhancement.end())
++    {
++      const auto& unit = it->second;
++      const int baseSize = basePkt->size;
++      const size_t extra = unit.layer.size() + unit.rpu.size();
++
++      Packet joined(av_packet_clone(basePkt.get()));
++      if (!joined || (extra > 0 && av_grow_packet(joined.get(), extra) < 0))
++      {
++        av_packet_move_ref(output, basePkt.get());
++        m_bytes -= basePkt->size;
++        m_base.pop_front();
++        return 0;
++      }
++
++      if (!unit.layer.empty())
++        std::memcpy(joined->data + baseSize, unit.layer.data(), unit.layer.size());
++      if (!unit.rpu.empty())
++        std::memcpy(joined->data + baseSize + unit.layer.size(), unit.rpu.data(), unit.rpu.size());
++
++      m_bytes -= (baseSize + extra);
++      av_packet_move_ref(output, joined.get());
++
++      m_base.pop_front();
++      m_enhancement.erase(it);
++
++      CleanStale(targetPts);
++      return 0;
++    }
++
++    // 2. Anti-starvation fallback: if Base Layer accumulates beyond threshold without matching EL,
++    // emit as standalone Base Layer (HDR10) to prevent any hang or freeze.
++    if (m_base.size() >= STARVATION_THRESHOLD)
++    {
++      CLog::Log(LOGWARNING, "DV Blu-ray: Take STARVATION fallback BL pts={} q_base={}", targetPts, m_base.size());
++      av_packet_move_ref(output, basePkt.get());
++      m_bytes -= basePkt->size;
++      m_base.pop_front();
++      return 0;
++    }
++
++    return AVERROR(EAGAIN);
 +  }
 +
-+  bool Pending() const { return !m_base.empty() || !m_enhancement.empty() || !m_rpu.empty(); }
++  bool Pending() const { return !m_base.empty() || !m_enhancement.empty(); }
 +
 +private:
-+  static constexpr size_t MAX_PACKETS = 32;
-+  static constexpr size_t MAX_BYTES = 64u * 1024u * 1024u;
++  static constexpr size_t MAX_PACKETS = 256;
++  static constexpr size_t STARVATION_THRESHOLD = 64;
++  static constexpr size_t MAX_BYTES = 128u * 1024u * 1024u;
++
 +  struct Release { void operator()(AVPacket* p) const { av_packet_free(&p); } };
 +  using Packet = std::unique_ptr<AVPacket, Release>;
++
++  struct EnhancementUnit
++  {
++    std::vector<uint8_t> layer;
++    std::vector<uint8_t> rpu;
++  };
 +
 +  // Return the prefix and payload positions of the next Annex-B NAL.
 +  static std::array<int, 2> Start(const uint8_t* data, int size, int from)
 +  {
 +    for (int i = from; i < size - 2; ++i)
 +    {
-+      if (data[i] || data[i+1])
++      if (data[i] || data[i + 1])
 +        continue;
-+      if (data[i+2] == 1)
-+        return {i, i+3};
-+      if (i < size - 3 && !data[i+2] && data[i+3] == 1)
-+        return {i, i+4};
++      if (data[i + 2] == 1)
++        return {i, i + 3};
++      if (i < size - 3 && !data[i + 2] && data[i + 3] == 1)
++        return {i, i + 4};
 +    }
 +    return {size, size};
 +  }
 +
-+  std::deque<Packet> m_base, m_enhancement;
-+  // Keep each layer's decode order; associate RPU only by presentation time.
-+  std::map<int64_t, std::vector<uint8_t>> m_rpu;
++  void DropOldest()
++  {
++    if (!m_base.empty())
++    {
++      m_bytes -= m_base.front()->size;
++      m_base.pop_front();
++    }
++    else if (!m_enhancement.empty())
++    {
++      auto it = m_enhancement.begin();
++      m_bytes -= (it->second.layer.size() + it->second.rpu.size());
++      m_enhancement.erase(it);
++    }
++  }
++
++  void CleanStale(int64_t currentPts)
++  {
++    while (!m_enhancement.empty() && m_enhancement.begin()->first < currentPts - 90000 * 2)
++    {
++      auto it = m_enhancement.begin();
++      m_bytes -= (it->second.layer.size() + it->second.rpu.size());
++      m_enhancement.erase(it);
++    }
++  }
++
++  std::deque<Packet> m_base;
++  std::map<int64_t, EnhancementUnit> m_enhancement;
 +  size_t m_bytes{0};
++  int64_t m_lastBasePts{AV_NOPTS_VALUE};
++  int64_t m_lastElPts{AV_NOPTS_VALUE};
++  int m_lastElNalType{-1};
++  bool m_hasLayer{false};
 +};
 diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.cpp
 index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a67467a018f4 100644
@@ -237,7 +369,7 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
        continue;
      CDemuxStream* stream = GetStream(idx);
      if (!stream)
-@@ -2885,6 +2915,106 @@ void CDVDDemuxFFmpeg::GetL16Parameters(int &channels, int &samplerate)
+@@ -2885,6 +2915,105 @@ void CDVDDemuxFFmpeg::GetL16Parameters(int &channels, int &samplerate)
    }
  }
  
@@ -332,8 +464,7 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
 +    av_packet_unref(packet);
 +    if (!accepted)
 +    {
-+      CLog::Log(LOGERROR, "DV Blu-ray: invalid layer packet or pairing queue exceeded");
-+      return AVERROR_INVALIDDATA;
++      CLog::Log(LOGWARNING, "DV Blu-ray: unparseable layer packet, continuing stream");
 +    }
 +    result = m_blurayDovi->Take(packet);
 +  }
@@ -372,3 +503,33 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
    CCriticalSection m_critSection;
    std::map<int, CDemuxStream*> m_streams;
    std::map<int, std::unique_ptr<CDemuxParserFFmpeg>> m_parsers;
+diff --git a/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp b/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp
+--- a/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp
++++ b/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp
+@@ -226,10 +226,16 @@
+ }
+ 
+ #ifdef HAVE_DVBRIDGE
++static int ScanoutPeriodTimeoutMs(const std::shared_ptr<KODI::WINDOWING::GBM::CDRMUtils>& drm)
++{
++  const float refresh = drm ? drm->GetCurrentMode().fRefreshRate : 60.0f;
++  return static_cast<int>(std::ceil(1000.0f / (refresh >= 10.0f ? refresh : 60.0f))) + 2;
++}
++
+ bool CWinSystemGbmGLESContext::BeginRender()
+ {
+   // A prepared picture already includes its GUI; wait before drawing it again.
+-  if (m_cb1FramePending && m_dvFrame && !CompleteDVBridgePage(8)) return false;
++  if (m_cb1FramePending && m_dvFrame && !CompleteDVBridgePage(ScanoutPeriodTimeoutMs(m_DRM))) return false;
+   return CRenderSystemGLES::BeginRender();
+ }
+ #endif
+@@ -256,7 +262,7 @@
+ {
+ #ifdef HAVE_DVBRIDGE
+   // Yield to the pending scanout instead of repeatedly redrawing the GUI.
+-  if (!CompleteDVBridgePage(8)) return;
++  if (!CompleteDVBridgePage(ScanoutPeriodTimeoutMs(m_DRM))) return;
+   // An ordinary restoration must present before stop can stage its successor.
+   if (m_dvStopPending && !m_dvOrdinaryFrame && !StopDVBridgePlayback()) return;
+   if (m_dvEndPending && !EndDVBridge()) return;

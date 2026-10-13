@@ -30,7 +30,11 @@ static bool picture_identity(struct picture_order *order, const AVPacket *packet
                                packet->data, packet->size, packet->pts, packet->dts, packet->pos);
     int poc = order->parser->output_picture_number;
     if (used != packet->size || output_size <= 0 || poc == INT_MIN)
+    {
+        av_log(NULL, AV_LOG_ERROR, "CB1 picture_identity failed: used=%d size=%d out=%d poc=%d\n",
+               used, packet->size, output_size, poc);
         return false;
+    }
     if (order->seen && poc == 0 && order->parser->key_frame == 1) {
         if (order->maximum == INT64_MAX)
             return false;
@@ -282,10 +286,16 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
         return false;
     int64_t base_identity;
     if (f->num_times == MAP_MAX || !picture_identity(&f->base_order, packet, &base_identity))
+    {
+        av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: base picture_identity failed! size=%d pts=%" PRId64 "\n", packet->size, packet->pts);
         goto fail;
+    }
     for (unsigned i = 0; i < f->num_times; ++i)
         if (f->times[i].order == base_identity)
+        {
+            av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: duplicate base_identity=%" PRId64 "\n", base_identity);
             goto fail;
+        }
     f->times[f->num_times].order = base_identity;
     f->times[f->num_times++].pts = packet->pts;
     AVPacket *copy = av_packet_clone(packet);
@@ -294,7 +304,10 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
     int result = av_bsf_send_packet(f->split, copy);
     av_packet_free(&copy);
     if (result < 0)
+    {
+        av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: av_bsf_send_packet failed! ret=%d\n", result);
         goto fail;
+    }
     while (true) {
         copy = av_packet_alloc();
         if (!copy)
@@ -304,11 +317,13 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
             av_packet_free(&copy);
             if (result == AVERROR(EAGAIN))
                 return pump(f);
+            av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: av_bsf_receive_packet failed! ret=%d\n", result);
             goto fail;
         }
         if (f->num_packets == QUEUE_MAX || copy->size <= 0 ||
             (size_t)copy->size > PACKET_BYTES_MAX - f->packet_bytes ||
             !picture_identity(&f->enhancement_order, copy, &f->packet_order[f->num_packets])) {
+            av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: enhancement picture_identity failed! copy_size=%d\n", copy->size);
             av_packet_free(&copy);
             goto fail;
         }
@@ -325,7 +340,10 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
                 av_packet_free(&copy);
                 f->num_times = 0;
                 if (++f->preroll_packets > 1024)
+                {
+                    av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: preroll_packets exceeded 1024!\n");
                     goto fail;
+                }
                 continue;
             }
             f->enhancement_order.offset = base_identity - ep->output_picture_number;
@@ -338,6 +356,7 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
         f->packets[f->num_packets++] = copy;
     }
 fail:
+    av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit failed at line %d\n", __LINE__);
     f->failed = true;
     return false;
 }
