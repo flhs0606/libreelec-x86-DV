@@ -503,33 +503,3 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
    CCriticalSection m_critSection;
    std::map<int, CDemuxStream*> m_streams;
    std::map<int, std::unique_ptr<CDemuxParserFFmpeg>> m_parsers;
-diff --git a/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp b/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp
---- a/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp
-+++ b/xbmc/windowing/gbm/WinSystemGbmGLESContext.cpp
-@@ -226,10 +226,16 @@
- }
- 
- #ifdef HAVE_DVBRIDGE
-+static int ScanoutPeriodTimeoutMs(const std::shared_ptr<KODI::WINDOWING::GBM::CDRMUtils>& drm)
-+{
-+  const float refresh = drm ? drm->GetCurrentMode().fRefreshRate : 60.0f;
-+  return static_cast<int>(std::ceil(1000.0f / (refresh >= 10.0f ? refresh : 60.0f))) + 2;
-+}
-+
- bool CWinSystemGbmGLESContext::BeginRender()
- {
-   // A prepared picture already includes its GUI; wait before drawing it again.
--  if (m_cb1FramePending && m_dvFrame && !CompleteDVBridgePage(8)) return false;
-+  if (m_cb1FramePending && m_dvFrame && !CompleteDVBridgePage(ScanoutPeriodTimeoutMs(m_DRM))) return false;
-   return CRenderSystemGLES::BeginRender();
- }
- #endif
-@@ -256,7 +262,7 @@
- {
- #ifdef HAVE_DVBRIDGE
-   // Yield to the pending scanout instead of repeatedly redrawing the GUI.
--  if (!CompleteDVBridgePage(8)) return;
-+  if (!CompleteDVBridgePage(ScanoutPeriodTimeoutMs(m_DRM))) return;
-   // An ordinary restoration must present before stop can stage its successor.
-   if (m_dvStopPending && !m_dvOrdinaryFrame && !StopDVBridgePlayback()) return;
-   if (m_dvEndPending && !EndDVBridge()) return;
