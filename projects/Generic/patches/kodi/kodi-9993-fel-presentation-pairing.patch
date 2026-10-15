@@ -1,8 +1,40 @@
 diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp
-index be98a8d1baafc0c76589d994b20bfaf4bccef3a4..0f38caa3a17b870367746ddb829e319314b41833 100644
 --- a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp
 +++ b/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp
-@@ -721,8 +721,23 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecFFmpeg::GetPicture(VideoPicture* pVideoPi
+@@ -665,8 +665,8 @@ bool CDVDVideoCodecFFmpeg::AddData(const DemuxPacket &packet)
+   int ret = avcodec_send_packet(m_pCodecContext, avpkt);
+ #ifdef HAVE_DVBRIDGE
+   // Submit once, only after BL accepted the packet (Kodi retries EAGAIN).
+-  if (ret == 0 && m_dvFel && !dvbridge_fel_submit(m_dvFel.get(), avpkt))
+-    m_dvFailed = true;
++  if (ret == 0 && m_dvFel && avpkt->pts != AV_NOPTS_VALUE)
++    dvbridge_fel_submit(m_dvFel.get(), avpkt);
+ #endif
+ 
+   //! @todo: properly handle avpkt side_data. this works around our improper use of the side_data
+@@ -710,19 +710,48 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecFFmpeg::GetPicture(VideoPicture* pVideoPicture)
+   if (m_dvFel)
+   {
+     if (m_dvFailed || dvbridge_fel_failed(m_dvFel.get()))
+-      return VC_ERROR;
++    {
++      CLog::Log(LOGWARNING, "CDVDVideoCodecFFmpeg::{} - dvbridge_fel failed, resetting and falling back to base layer", __FUNCTION__);
++      dvbridge_fel_reset(m_dvFel.get());
++      m_dvFailed = false;
++    }
+     auto emit = [&]() -> VCReturn
+     {
+       if (m_dvPending.empty())
+         return VC_NONE;
+       auto& base = m_dvPending.front();
+       if (base->doviSourcePts == AV_NOPTS_VALUE)
+-        return VC_ERROR;
++      {
++        base->doviEnhancement.reset();
++        pVideoPicture->CopyRef(*base);
++        m_dvPending.pop_front();
++        return VC_PICTURE;
++      }
        AVFrame* enhancement = nullptr;
        int result = dvbridge_fel_take(m_dvFel.get(), base->doviSourcePts,
                                       &enhancement);
@@ -12,6 +44,7 @@ index be98a8d1baafc0c76589d994b20bfaf4bccef3a4..0f38caa3a17b870367746ddb829e3193
 +        return VC_BUFFER;
 +      }
        if (result < 0)
+-        return VC_ERROR;
 +      {
 +        if (dvbridge_fel_exhausted(m_dvFel.get()))
 +        {
@@ -21,7 +54,12 @@ index be98a8d1baafc0c76589d994b20bfaf4bccef3a4..0f38caa3a17b870367746ddb829e3193
 +          m_dvPending.clear();
 +          return VC_EOF;
 +        }
-         return VC_ERROR;
++        CLog::Log(LOGDEBUG, "DV FEL: un-paired enhancement at pts {}, smoothly emitting base layer",
++                  base->doviSourcePts);
++        base->doviEnhancement.reset();
++        pVideoPicture->CopyRef(*base);
++        m_dvPending.pop_front();
++        return VC_PICTURE;
 +      }
        if (!result)
          return VC_NONE;

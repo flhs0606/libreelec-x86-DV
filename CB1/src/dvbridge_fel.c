@@ -234,8 +234,19 @@ static bool pump(struct dvbridge_fel *f)
         int result = avcodec_send_packet(f->decoder, packet);
         if (result == AVERROR(EAGAIN))
             break;
-        if (result < 0)
-            goto fail;
+        if (result < 0) {
+            av_log(NULL, AV_LOG_WARNING, "CB1 dvbridge_fel: avcodec_send_packet error %d, skipping EL packet\n", result);
+            --f->num_times;
+            memmove(f->times + match, f->times + match + 1,
+                    (f->num_times - match) * sizeof(*f->times));
+            f->packet_bytes -= packet->size;
+            av_packet_free(&packet);
+            --f->num_packets;
+            memmove(f->packets, f->packets + 1, f->num_packets * sizeof(*f->packets));
+            memmove(f->packet_order, f->packet_order + 1, f->num_packets * sizeof(*f->packet_order));
+            receive_frames(f);
+            continue;
+        }
         --f->num_times;
         memmove(f->times + match, f->times + match + 1,
                 (f->num_times - match) * sizeof(*f->times));
@@ -284,6 +295,14 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
     if (!f || !packet || f->failed || f->draining || packet->size <= 0 ||
         packet->pts == AV_NOPTS_VALUE)
         return false;
+
+    if (f->anchor_pts != AV_NOPTS_VALUE && packet->pts < f->anchor_pts - 90000 * 2)
+    {
+        /* Backward jump across seamless branching: re-arm anchor and preroll */
+        f->anchor_pts = packet->pts;
+        f->preroll_packets = 0;
+    }
+
     int64_t base_identity;
     if (f->num_times == MAP_MAX || !picture_identity(&f->base_order, packet, &base_identity))
     {
@@ -341,8 +360,8 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
                 f->num_times = 0;
                 if (++f->preroll_packets > 1024)
                 {
-                    av_log(NULL, AV_LOG_ERROR, "CB1 dvbridge_fel_submit: preroll_packets exceeded 1024!\n");
-                    goto fail;
+                    av_log(NULL, AV_LOG_WARNING, "CB1 dvbridge_fel_submit: preroll_packets exceeded 1024, waiting for next IDR\n");
+                    f->preroll_packets = 0;
                 }
                 continue;
             }
@@ -377,6 +396,11 @@ int dvbridge_fel_take(struct dvbridge_fel *f, int64_t pts, AVFrame **frame)
 {
     if (!f || !frame || *frame || pts == AV_NOPTS_VALUE || !pump(f))
         return -1;
+    if (f->anchor_pts != AV_NOPTS_VALUE && pts < f->anchor_pts && f->anchor_pts - pts > 90000 * 2)
+    {
+        /* Backward jump across seamless branching clip: update anchor */
+        f->anchor_pts = pts;
+    }
     if (f->synchronizing || (f->anchor_pts != AV_NOPTS_VALUE && pts < f->anchor_pts))
         return 2; /* Preroll before a recoverable EL picture, not a substitute. */
     for (unsigned i = 0; i < f->num_frames;) {

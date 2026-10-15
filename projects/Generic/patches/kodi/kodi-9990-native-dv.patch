@@ -1277,6 +1277,38 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/VAAPI.cpp b/xbmc/cores/Video
    vaapiFramesCtx->nb_attributes = 0;
    vaapiFramesCtx->nb_surfaces = m_videoSurfaces.Size();
    VASurfaceID *surfaceIds = (VASurfaceID*)av_malloc(vaapiFramesCtx->nb_surfaces *  sizeof(VASurfaceID));
+@@ -1036,10 +1050,29 @@ CDVDVideoCodec::VCReturn CDecoder::Decode(AVCodecContext* avctx, AVFrame* pFrame
+       }
+     }
+ 
+-    if (!m_inMsgEvent.Wait(2000ms))
++    if (!m_inMsgEvent.Wait(drain ? 100ms : 2000ms))
+       break;
+   }
+ 
++  if (drain)
++  {
++    CLog::Log(LOGWARNING,
++              "VAAPI::{} - drain timeout with pending frames (decoded: {}, proc: {}) - "
++              "clearing stalled pictures to prevent hardware reset",
++              __FUNCTION__, decoded, processed);
++    m_bufferStats.SetParams(0, 0);
++    m_codecControl &= ~DVD_CODEC_CTRL_DRAIN;
++    return CDVDVideoCodec::VC_EOF;
++  }
++
++  if (!drain && m_videoSurfaces.HasFree())
++  {
++    CLog::Log(LOGDEBUG, LOGVIDEO,
++              "VAAPI::{} - output message wait expired (decoded: {}, proc: {}, free surfaces: {}), requesting more buffer",
++              __FUNCTION__, decoded, processed, m_videoSurfaces.HasFree() ? "yes" : "no");
++    return CDVDVideoCodec::VC_BUFFER;
++  }
++
+   CLog::Log(LOGERROR,
+             "VAAPI::{} - timed out waiting for output message - decoded: {}, proc: {}, has free "
+             "surface: {}",
+
 diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h
 --- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h
 +++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h

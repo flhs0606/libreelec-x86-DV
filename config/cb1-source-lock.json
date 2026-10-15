@@ -16,14 +16,14 @@
     "projects/Generic/filesystem/usr/bin/dv-diagnostics": "ee77b1f0c9a93a1ebd8680229b6b94b7cfcdd07b651e7eed07d38c6a3df2bdaf",
     "projects/Generic/linux/7.2.6/linux.x86_64.conf": "d399a8320e2ec568f18e79a64718b4aea8613f425c750531d6397ca03045cf91",
     "projects/Generic/options": "1d007b360674921206d52c41fc9ac290dd66d543d1f03238f47c5b51ae3ea935",
-    "projects/Generic/patches/kodi/kodi-9990-native-dv.patch": "1333ffbcaf2d646b1e2c1aa839559d784cd4d851557aed37041d9c41fd84d40a",
-    "projects/Generic/patches/kodi/kodi-9993-fel-presentation-pairing.patch": "790dc8581377a35f6b3b267804a629076135df43ae2bc50e94c72eb2f4263cf1",
+    "projects/Generic/patches/kodi/kodi-9990-native-dv.patch": "83759a8b6691dc57f48243fdd51522e45121bd77854b6bd9092def1fa811e881",
+    "projects/Generic/patches/kodi/kodi-9993-fel-presentation-pairing.patch": "55d86dd45e91bbdd2d433ed9385720c514eff771d304b527ea0c2436401493eb",
     "projects/Generic/patches/kodi/kodi-9994-hdmi-recovery.patch": "9eb4a9d970110b37abfbdef713b04df2da5081b54e1c7aa7d3648bc015388380",
     "projects/Generic/patches/kodi/kodi-9995-diagnostics.patch": "534fb738392b2c8f6d02adf348373d487c6d42181529d1529f40024e942bbf1b",
     "projects/Generic/patches/kodi/kodi-9996-output-modes-and-info.patch": "db317835aa1273e9fea6a3b45d6493767bb7f6bc78b78d89e10a2ff50f66cd52",
     "projects/Generic/patches/kodi/kodi-9997-dv-static-metadata-latch.patch": "d5ad44d3f8ff9081528aad0d9f2702cdbf0b276645647426f243a1fd0e3cc0c7",
     "projects/Generic/patches/kodi/kodi-9998-activeae-sink-retry.patch": "5fbca2f8b7036b8a08da2ec21bcac2d5c0409a6897fc2eb6c2ac3d2fb124e5dd",
-    "projects/Generic/patches/kodi/kodi-9999-bluray-dv.patch": "083371908d8ecc35cd3ebd826c94feea6141a55f9c9224d4428e0a1fb334c29b",
+    "projects/Generic/patches/kodi/kodi-9999-bluray-dv.patch": "09d8d140d8701fc8b15fda819d3ed6b4f6bda96c0ca738b6769b922be486ba04",
     "projects/Generic/patches/kodi/kodi-9999-native-screenshots.patch": "d8d752aafa58454495cb78901b24b6b52185f88ad94332035c4a90703ad88ca9",
     "projects/Generic/patches/kodi/kodi-9999-z-frame-preparation.patch": "f51bb6b5507f2f5ee369c193fe4f19b717a5de8e2e6d098390b090654a17947d",
     "projects/Generic/patches/kodi/kodi-9999-zz-beta3.patch": "794a63ca5dbd657e997cb0d2dd1f8a71363c8e1d0fd7d8bfa72efd3deda2c6b9",
@@ -182,7 +182,7 @@
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_fel.c": {
       "source": "src/dvbridge_fel.c",
-      "sha256": "cc7bf9a456c5c34e1528c77dc152545bdd477b421538af152d8159cf61d41900"
+      "sha256": "a19e01591150a2ab8abc59032824301540923266d25e5e9be542a25d2414fe1a"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_fel.h": {
       "source": "src/dvbridge_fel.h",

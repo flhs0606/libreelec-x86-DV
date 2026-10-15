@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619ecc613c0c
 --- /dev/null
 +++ b/xbmc/cores/VideoPlayer/DVDDemuxers/BlurayDovi.h
-@@ -0,0 +1,266 @@
+@@ -0,0 +1,414 @@
 +/* SPDX-License-Identifier: GPL-2.0-or-later */
 +#pragma once
 +
@@ -33,9 +33,14 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    m_bytes = 0;
 +    m_lastBasePts = AV_NOPTS_VALUE;
 +    m_lastElPts = AV_NOPTS_VALUE;
++    m_lastTakenBasePts = AV_NOPTS_VALUE;
 +    m_lastElNalType = -1;
 +    m_hasLayer = false;
++    m_inTransition = false;
++    m_eof = false;
 +  }
++
++  void SetEOF() { m_eof = true; }
 +
 +  bool Push(const AVPacket* packet, bool enhancement)
 +  {
@@ -48,8 +53,8 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +    if (!enhancement)
 +    {
-+      // If continuation BL packet without PTS, reassemble into back of m_base
-+      if (packet->pts == AV_NOPTS_VALUE)
++      // Reassemble continuation BL packets (without PTS, or matching previous PTS)
++      if (packet->pts == AV_NOPTS_VALUE || (!m_base.empty() && packet->pts == m_base.back()->pts))
 +      {
 +        if (!m_base.empty())
 +        {
@@ -67,21 +72,41 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      if (m_base.size() >= MAX_PACKETS)
 +        DropOldest();
 +
-+      Packet owned(av_packet_clone(packet));
-+      if (!owned)
-+        return true;
-+
 +      // Seamless branching backward time jump detection (> 2.0s negative jump)
-+      if (m_lastBasePts != AV_NOPTS_VALUE && packet->pts < m_lastBasePts - 90000 * 2)
++      if (m_lastBasePts != AV_NOPTS_VALUE && packet->pts != AV_NOPTS_VALUE &&
++          packet->pts < m_lastBasePts - 90000 * 2)
 +      {
-+        for (const auto& [p, u] : m_enhancement)
-+          m_bytes -= (u.layer.size() + u.rpu.size());
-+        m_enhancement.clear();
-+        m_lastElNalType = -1;
++        m_inTransition = true;
++        CLog::Log(LOGDEBUG, "DV Blu-ray: BL transition detected: {} -> {}", m_lastBasePts, packet->pts);
 +      }
 +      m_lastBasePts = packet->pts;
 +
-+      m_bytes += packet->size;
++      // Scan and strip HEVC EOS (36) and EOB (37) NALs from Base Layer (nalSize == 2)
++      Packet owned;
++      if (ContainsEosNal(packet->data, packet->size))
++      {
++        CLog::Log(LOGDEBUG, "DV Blu-ray: stripping BL EOS/EOB NAL units");
++        auto filtered = StripEosNalUnits(packet->data, packet->size);
++        owned.reset(av_packet_alloc());
++        if (owned && av_new_packet(owned.get(), filtered.size()) >= 0)
++        {
++          std::memcpy(owned->data, filtered.data(), filtered.size());
++          av_packet_copy_props(owned.get(), packet);
++        }
++        else
++        {
++          owned.reset(av_packet_clone(packet));
++        }
++      }
++      else
++      {
++        owned.reset(av_packet_clone(packet));
++      }
++
++      if (!owned)
++        return true;
++
++      m_bytes += owned->size;
 +      m_base.push_back(std::move(owned));
 +      return true;
 +    }
@@ -97,6 +122,11 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    }
 +    else
 +    {
++      if (m_lastElPts != AV_NOPTS_VALUE && pts < m_lastElPts - 90000 * 2)
++      {
++        m_inTransition = true;
++        CLog::Log(LOGDEBUG, "DV Blu-ray: EL transition detected: {} -> {}", m_lastElPts, pts);
++      }
 +      m_lastElPts = packet->pts;
 +    }
 +
@@ -117,12 +147,25 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      if (size >= 2 && !(packet->data[begin[1]] & 0x80) && (packet->data[begin[1] + 1] & 7))
 +      {
 +        const int type = (packet->data[begin[1]] >> 1) & 63;
++        // Intercept and strip HEVC EOS (36) and EOB (37) NALs from Enhancement Layer
++        if (size == 2 && (type == 36 || type == 37))
++        {
++          CLog::Log(LOGDEBUG, "DV Blu-ray: stripping EL EOS/EOB NAL type={}", type);
++          begin = next;
++          continue;
++        }
++
 +        m_lastElNalType = type;
-+        auto& destination = (type == 62) ? rpu : layer;
-+        destination.insert(destination.end(), {0, 0, 0, 1});
-+        if (type != 62)
-+          destination.insert(destination.end(), {0x7e, 1});
-+        destination.insert(destination.end(), packet->data + begin[1], packet->data + next[0]);
++        if (type == 62)
++        {
++          rpu.insert(rpu.end(), {0, 0, 0, 1});
++          rpu.insert(rpu.end(), packet->data + begin[1], packet->data + next[0]);
++        }
++        else
++        {
++          layer.insert(layer.end(), {0, 0, 0, 1, 0x7e, 1});
++          layer.insert(layer.end(), packet->data + begin[1], packet->data + next[0]);
++        }
 +      }
 +      begin = next;
 +    }
@@ -136,7 +179,12 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      if (!layer.empty())
 +        unit.layer.insert(unit.layer.end(), layer.begin(), layer.end());
 +      if (!rpu.empty())
-+        unit.rpu.insert(unit.rpu.end(), rpu.begin(), rpu.end());
++      {
++        if (unit.rpu.empty())
++          unit.rpu = std::move(rpu);
++        else
++          CLog::Log(LOGDEBUG, "DV Blu-ray: unit at pts {} already has RPU, keeping first", pts);
++      }
 +
 +      m_bytes += layer.size() + rpu.size();
 +    }
@@ -146,18 +194,43 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +  int Take(AVPacket* output)
 +  {
-+    if (m_base.empty())
++    // 1-frame lookahead gate: never emit incomplete 4K frame before all its continuation slices arrive
++    if (m_base.empty() || (m_base.size() < 2 && !m_eof))
 +      return AVERROR(EAGAIN);
 +
 +    auto& basePkt = m_base.front();
 +    const int64_t targetPts = basePkt->pts;
 +
-+    // Discard any orphan packets without PTS to prevent decoder corruption
++    // Check if Take() has crossed into the new segment
++    if (m_lastTakenBasePts != AV_NOPTS_VALUE && targetPts != AV_NOPTS_VALUE &&
++        targetPts < m_lastTakenBasePts - 90000 * 2)
++    {
++      CLog::Log(LOGDEBUG,
++                "DV Blu-ray: Take crossed seam to new segment (pts {} < last taken {}). Purging old segment stragglers.",
++                targetPts, m_lastTakenBasePts);
++      for (auto it = m_enhancement.begin(); it != m_enhancement.end(); )
++      {
++        if (it->first > targetPts + 90000 * 2)
++        {
++          m_bytes -= (it->second.layer.size() + it->second.rpu.size());
++          it = m_enhancement.erase(it);
++        }
++        else
++        {
++          ++it;
++        }
++      }
++      m_inTransition = false;
++      m_lastTakenBasePts = targetPts; // Update immediately to eliminate duplicate logs on EAGAIN
++    }
++
++    // Do NOT discard orphan packets without PTS: emit as standalone Base Layer!
 +    if (targetPts == AV_NOPTS_VALUE)
 +    {
++      av_packet_move_ref(output, basePkt.get());
 +      m_bytes -= basePkt->size;
 +      m_base.pop_front();
-+      return AVERROR(EAGAIN);
++      return 0;
 +    }
 +
 +    // 1. Exact PTS matching (BL and EL share identical 90kHz PTS in Blu-ray M2TS)
@@ -166,7 +239,9 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    {
 +      const auto& unit = it->second;
 +      const int baseSize = basePkt->size;
-+      const size_t extra = unit.layer.size() + unit.rpu.size();
++      const bool blHasRpu = ContainsRpuNal(basePkt->data, basePkt->size);
++      const size_t rpuSize = blHasRpu ? 0 : unit.rpu.size();
++      const size_t extra = unit.layer.size() + rpuSize;
 +
 +      Packet joined(av_packet_clone(basePkt.get()));
 +      if (!joined || (extra > 0 && av_grow_packet(joined.get(), extra) < 0))
@@ -174,21 +249,24 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +        av_packet_move_ref(output, basePkt.get());
 +        m_bytes -= basePkt->size;
 +        m_base.pop_front();
++        m_lastTakenBasePts = targetPts;
 +        return 0;
 +      }
 +
 +      if (!unit.layer.empty())
 +        std::memcpy(joined->data + baseSize, unit.layer.data(), unit.layer.size());
-+      if (!unit.rpu.empty())
-+        std::memcpy(joined->data + baseSize + unit.layer.size(), unit.rpu.data(), unit.rpu.size());
++      if (rpuSize > 0)
++        std::memcpy(joined->data + baseSize + unit.layer.size(), unit.rpu.data(), rpuSize);
 +
 +      m_bytes -= (baseSize + extra);
 +      av_packet_move_ref(output, joined.get());
 +
 +      m_base.pop_front();
 +      m_enhancement.erase(it);
++      m_lastTakenBasePts = targetPts;
 +
-+      CleanStale(targetPts);
++      if (!m_inTransition)
++        CleanStale(targetPts);
 +      return 0;
 +    }
 +
@@ -200,6 +278,7 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      av_packet_move_ref(output, basePkt.get());
 +      m_bytes -= basePkt->size;
 +      m_base.pop_front();
++      m_lastTakenBasePts = targetPts;
 +      return 0;
 +    }
 +
@@ -237,6 +316,70 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    return {size, size};
 +  }
 +
++  static bool ContainsEosNal(const uint8_t* data, int size)
++  {
++    auto begin = Start(data, size, 0);
++    while (begin[0] < size)
++    {
++      const auto next = Start(data, size, begin[1]);
++      const int nalSize = next[0] - begin[1];
++      if (nalSize == 2)
++      {
++        const int type = (data[begin[1]] >> 1) & 63;
++        if (type == 36 || type == 37)
++          return true;
++      }
++      begin = next;
++    }
++    return false;
++  }
++
++  static bool ContainsRpuNal(const uint8_t* data, int size)
++  {
++    auto begin = Start(data, size, 0);
++    while (begin[0] < size)
++    {
++      const auto next = Start(data, size, begin[1]);
++      if (next[0] - begin[1] >= 2)
++      {
++        const int type = (data[begin[1]] >> 1) & 63;
++        if (type == 62)
++          return true;
++      }
++      begin = next;
++    }
++    return false;
++  }
++
++  static std::vector<uint8_t> StripEosNalUnits(const uint8_t* data, int size)
++  {
++    std::vector<uint8_t> filtered;
++    filtered.reserve(size);
++    auto begin = Start(data, size, 0);
++    if (begin[0] > 0)
++    {
++      filtered.insert(filtered.end(), data, data + begin[0]);
++    }
++    while (begin[0] < size)
++    {
++      const auto next = Start(data, size, begin[1]);
++      const int nalSize = next[0] - begin[1];
++      if (nalSize == 2)
++      {
++        const int type = (data[begin[1]] >> 1) & 63;
++        if (type == 36 || type == 37)
++        {
++          begin = next;
++          continue;
++        }
++      }
++      filtered.insert(filtered.end(), {0, 0, 0, 1});
++      filtered.insert(filtered.end(), data + begin[1], data + next[0]);
++      begin = next;
++    }
++    return filtered;
++  }
++
 +  void DropOldest()
 +  {
 +    if (!m_base.empty())
@@ -254,6 +397,8 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +  void CleanStale(int64_t currentPts)
 +  {
++    if (m_inTransition || currentPts == AV_NOPTS_VALUE)
++      return;
 +    while (!m_enhancement.empty() && m_enhancement.begin()->first < currentPts - 90000 * 2)
 +    {
 +      auto it = m_enhancement.begin();
@@ -267,8 +412,11 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +  size_t m_bytes{0};
 +  int64_t m_lastBasePts{AV_NOPTS_VALUE};
 +  int64_t m_lastElPts{AV_NOPTS_VALUE};
++  int64_t m_lastTakenBasePts{AV_NOPTS_VALUE};
 +  int m_lastElNalType{-1};
 +  bool m_hasLayer{false};
++  bool m_inTransition{false};
++  bool m_eof{false};
 +};
 diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.cpp
 index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a67467a018f4 100644
@@ -304,7 +452,19 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
    if (m_pFormatContext)
    {
      if (m_pFormatContext->pb)
-@@ -1106,7 +1115,12 @@ DemuxPacket* CDVDDemuxFFmpeg::ReadInternal(bool keep)
+@@ -1060,6 +1060,11 @@
+   double timestamp = (double)pts * num / den;
+   double starttime = 0.0;
+ 
++  if (m_pInput && m_pInput->IsStreamType(DVDSTREAM_TYPE_BLURAY))
++  {
++    return timestamp * DVD_TIME_BASE;
++  }
++
+   const std::shared_ptr<CDVDInputStream::IMenus> menuInterface =
+       std::dynamic_pointer_cast<CDVDInputStream::IMenus>(m_pInput);
+   if ((!menuInterface || menuInterface->GetSupportedMenuType() != MenuType::NATIVE) &&
+@@ -1106,8 +1111,40 @@
  
          // timeout reads after 100ms
          m_timeout.Set(20s);
@@ -315,8 +475,36 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
          m_pkt.result = av_read_frame(m_pFormatContext, &m_pkt.pkt);
 +#endif
          m_timeout.SetInfinite();
++
++        if (m_pkt.result >= 0 && (m_pkt.pkt.flags & AV_PKT_FLAG_CORRUPT) &&
++            m_pInput && m_pInput->IsStreamType(DVDSTREAM_TYPE_BLURAY))
++        {
++          bool isVideo = false;
++#ifdef HAVE_DVBRIDGE
++          if (m_pkt.pkt.stream_index == m_blurayBase || m_pkt.pkt.stream_index == m_blurayEnhancement)
++            isVideo = true;
++#endif
++          if (!isVideo && m_pkt.pkt.stream_index >= 0 &&
++              static_cast<unsigned>(m_pkt.pkt.stream_index) < m_pFormatContext->nb_streams)
++          {
++            if (m_pFormatContext->streams[m_pkt.pkt.stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
++              isVideo = true;
++          }
++
++          if (isVideo)
++          {
++            m_pkt.pkt.flags &= ~AV_PKT_FLAG_CORRUPT;
++          }
++          else
++          {
++            av_packet_unref(&m_pkt.pkt);
++            m_pkt.result = AVERROR(EAGAIN);
++            bReturnEmpty = true;
++          }
++        }
        }
  
+       if (m_pkt.result == AVERROR(EINTR) || m_pkt.result == AVERROR(EAGAIN))
 @@ -1645,6 +1659,9 @@ double CDVDDemuxFFmpeg::SelectAspect(AVStream* st, bool& forced)
  
  void CDVDDemuxFFmpeg::CreateStreams(unsigned int program)
@@ -503,3 +691,200 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
    CCriticalSection m_critSection;
    std::map<int, CDemuxStream*> m_streams;
    std::map<int, std::unique_ptr<CDemuxParserFFmpeg>> m_parsers;
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamBluray.h	2026-10-15 14:54:03.711595250 +0800
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamBluray.h	2026-10-15 14:54:03.711595250 +0800
+@@ -231,6 +231,16 @@
+   UpdateState UpdateItemFromSavedStates(CFileItem& item, double time, bool& closed) override;
+   void UpdateStack(CFileItem& item) override;
+ 
++  bool IsSeamlessStreamChange() const { return m_seamlessHold; }
++  void SetSeamlessGlideAllowed(bool allowed) { m_seamlessGlideAllowed = allowed; }
++  bool TakePendingSeamlessTransition()
++  {
++    const bool pending = m_pendingSeamlessTransition;
++    m_pendingSeamlessTransition = false;
++    return pending;
++  }
++  void CancelPendingSeamlessTransition() { m_pendingSeamlessTransition = false; }
++
+ protected:
+   struct SPlane;
+ 
+@@ -351,4 +361,10 @@
+     std::chrono::steady_clock::time_point m_startWatchTime{};
+     std::vector<PlaylistInformation> m_playedPlaylists;
+     CCriticalSection m_statesLock;
++
++    bool ClipConnectionIsSeamless(const BLURAY_CLIP_INFO* clip) const;
++    bool ArmSeamlessGlide();
++    bool m_seamlessHold{false};
++    bool m_seamlessGlideAllowed{true};
++    bool m_pendingSeamlessTransition{false};
+ };
+--- a/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamBluray.cpp	2026-10-15 17:02:11.783175620 +0800
++++ b/xbmc/cores/VideoPlayer/DVDInputStreams/DVDInputStreamBluray.cpp	2026-10-15 17:02:11.783175620 +0800
+@@ -509,6 +509,7 @@
+   /* playback control */
+ 
+   case BD_EVENT_SEEK:
++    CancelPendingSeamlessTransition();
+     CLog::Log(LOGDEBUG, "CDVDInputStreamBluray - BD_EVENT_SEEK");
+     //m_player->OnDVDNavResult(nullptr, 1);
+     //bd_read_skip_still(m_bd);
+@@ -557,6 +558,7 @@
+     break;
+ 
+   case BD_EVENT_TITLE:
++    CancelPendingSeamlessTransition();
+   {
+     CLog::Log(LOGDEBUG, "CDVDInputStreamBluray - BD_EVENT_TITLE {}", m_event.param);
+     const BLURAY_DISC_INFO* disc_info = bd_get_disc_info(m_bd);
+@@ -662,6 +664,7 @@
+     break;
+ 
+   case BD_EVENT_PLAYLIST_STOP:
++    CancelPendingSeamlessTransition();
+     CLog::Log(LOGDEBUG, "CDVDInputStreamBluray - BD_EVENT_PLAYLIST_STOP: flush buffers");
+     m_player->OnDiscNavResult(nullptr, BD_EVENT_PLAYLIST_STOP);
+     break;
+@@ -707,7 +710,19 @@
+         case BD_EVENT_TITLE:
+         case BD_EVENT_ANGLE:
+         case BD_EVENT_PLAYLIST:
++          if(m_hold != HOLD_DATA)
++          {
++            m_hold = HOLD_HELD;
++            return result;
++          }
++          break;
++
+         case BD_EVENT_PLAYITEM:
++          if (ArmSeamlessGlide())
++          {
++            ProcessEvent();
++            break;
++          }
+           if(m_hold != HOLD_DATA)
+           {
+             m_hold = HOLD_HELD;
+@@ -1197,6 +1212,8 @@
+   if(!m_navmode || m_hold == HOLD_EXIT || m_hold == HOLD_ERROR)
+     return NEXTSTREAM_NONE;
+ 
++  CancelPendingSeamlessTransition();
++
+   /* process any current event */
+   ProcessEvent();
+ 
+@@ -1485,3 +1502,42 @@
+   return UpdateStackItem(item,
+                          m_titleInfo ? std::chrono::milliseconds(m_titleInfo->duration / 90) : 0ms);
+ }
++
++bool CDVDInputStreamBluray::ClipConnectionIsSeamless(const BLURAY_CLIP_INFO* clip) const
++{
++  return clip && (clip->connection_condition == 5 || clip->connection_condition == 6);
++}
++
++bool CDVDInputStreamBluray::ArmSeamlessGlide()
++{
++  const bool isPlayitem = (m_event.event == BD_EVENT_PLAYITEM);
++  const bool isPlaylistWrap = (m_event.event == BD_EVENT_PLAYLIST && m_event.param == m_playlist);
++  m_seamlessHold = isPlayitem || isPlaylistWrap;
++
++  const BLURAY_CLIP_INFO* next = nullptr;
++  if (m_titleInfo && m_event.param < m_titleInfo->clip_count)
++  {
++    if (isPlayitem)
++      next = &m_titleInfo->clips[m_event.param];
++    else if (isPlaylistWrap && m_titleInfo->clip_count > 0)
++      next = &m_titleInfo->clips[0];
++  }
++
++  const int cc = next ? next->connection_condition : -1;
++  CLog::Log(LOGDEBUG,
++            "CDVDInputStreamBluray::ArmSeamlessGlide - event: {}, param: {}, hold: {}, "
++            "allowed: {}, titleInfo: {}, next: {}, cc: {}",
++            m_event.event, m_event.param, m_seamlessHold, m_seamlessGlideAllowed,
++            m_titleInfo != nullptr, next != nullptr, cc);
++
++  if (m_seamlessHold && m_seamlessGlideAllowed && ClipConnectionIsSeamless(next))
++  {
++    CLog::Log(LOGINFO,
++              "CDVDInputStreamBluray - gliding seamless seam at playitem {} (connection_condition {})",
++              m_event.param, cc);
++    m_pendingSeamlessTransition = true;
++    m_clip = const_cast<BLURAY_CLIP_INFO*>(next);
++    return true;
++  }
++  return false;
++}
+--- a/xbmc/cores/VideoPlayer/VideoPlayer.cpp
++++ b/xbmc/cores/VideoPlayer/VideoPlayer.cpp
+@@ -929,6 +929,10 @@ void CVideoPlayer::OnStartup()
+   m_CurrentVideo.Clear();
+   m_CurrentAudio.Clear();
+   m_CurrentSubtitle.Clear();
++#if defined(HAVE_LIBBLURAY)
++  if (const auto bluray = std::dynamic_pointer_cast<CDVDInputStreamBluray>(m_pInputStream))
++    bluray->SetSeamlessGlideAllowed(true);
++#endif
+   m_CurrentTeletext.Clear();
+   m_CurrentRadioRDS.Clear();
+   m_CurrentAudioID3.Clear();
+@@ -1313,6 +1317,14 @@ bool CVideoPlayer::ReadPacket(DemuxPacket*& packet)
+   if (m_pDemuxer)
+     packet = m_pDemuxer->Read();
+ 
++#if defined(HAVE_LIBBLURAY)
++  if (const auto bluray = std::dynamic_pointer_cast<CDVDInputStreamBluray>(m_pInputStream))
++  {
++    if (bluray->TakePendingSeamlessTransition())
++      CLog::Log(LOGINFO, "VideoPlayer: seamless glided playitem continuation");
++  }
++#endif
++
+   if (packet)
+   {
+     // stream changed, update and open defaults
+@@ -2732,9 +2744,22 @@ bool CVideoPlayer::CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket
+     }
+     else
+     {
+-      // not sure yet - flags the packets as unknown until we get confirmation on another audio/video packet
+-      pPacket->dts = DVD_NOPTS_VALUE;
+-      pPacket->pts = DVD_NOPTS_VALUE;
++      if (current.type == StreamType::VIDEO && m_playSpeed == DVD_PLAYSPEED_NORMAL &&
++          correction < -DVD_MSEC_TO_TIME(2000))
++      {
++        UpdateCorrection(pPacket, correction);
++        lastdts = pPacket->dts;
++        CLog::Log(LOGDEBUG,
++                  "CVideoPlayer::CheckContinuity - backward timeline restart: keeping "
++                  "keyframe timestamps (dts {}) rather than blanking them",
++                  pPacket->dts);
++      }
++      else
++      {
++        // not sure yet - flags the packets as unknown until we get confirmation on another audio/video packet
++        pPacket->dts = DVD_NOPTS_VALUE;
++        pPacket->pts = DVD_NOPTS_VALUE;
++      }
+     }
+   }
+   else
+--- a/xbmc/utils/BitstreamConverter.cpp
++++ b/xbmc/utils/BitstreamConverter.cpp
+@@ -986,7 +986,11 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData,
+ 
+       if (write_buf)
+       {
+-        if (unit_type == HEVC_NAL_UNSPEC62)
++        if (m_codec == AV_CODEC_ID_HEVC && (unit_type == HEVC_NAL_EOS_NUT || unit_type == HEVC_NAL_EOB_NUT))
++        {
++          write_buf = false;
++        }
++        else if (unit_type == HEVC_NAL_UNSPEC62)
+         {
+ #ifdef HAVE_LIBDOVI
+           // Convert the RPU itself
