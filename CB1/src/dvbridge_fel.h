@@ -17,4 +17,6 @@ int dvbridge_fel_take(struct dvbridge_fel *fel, int64_t pts, AVFrame **frame);
 bool dvbridge_fel_failed(const struct dvbridge_fel *fel);
 /* Decoder reached EOF and no enhancement surface remains to pair. */
 bool dvbridge_fel_exhausted(const struct dvbridge_fel *fel);
+unsigned dvbridge_fel_num_frames(const struct dvbridge_fel *fel);
+int64_t dvbridge_fel_first_frame_pts(const struct dvbridge_fel *fel);
 #endif

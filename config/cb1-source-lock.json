@@ -16,14 +16,14 @@
     "projects/Generic/filesystem/usr/bin/dv-diagnostics": "ee77b1f0c9a93a1ebd8680229b6b94b7cfcdd07b651e7eed07d38c6a3df2bdaf",
     "projects/Generic/linux/7.2.6/linux.x86_64.conf": "d399a8320e2ec568f18e79a64718b4aea8613f425c750531d6397ca03045cf91",
     "projects/Generic/options": "1d007b360674921206d52c41fc9ac290dd66d543d1f03238f47c5b51ae3ea935",
-    "projects/Generic/patches/kodi/kodi-9990-native-dv.patch": "83759a8b6691dc57f48243fdd51522e45121bd77854b6bd9092def1fa811e881",
-    "projects/Generic/patches/kodi/kodi-9993-fel-presentation-pairing.patch": "55d86dd45e91bbdd2d433ed9385720c514eff771d304b527ea0c2436401493eb",
+    "projects/Generic/patches/kodi/kodi-9990-native-dv.patch": "d91e9e6820e6235d284ce01bc2b4826fc1cdad39eeed4387d808416402bd342d",
+    "projects/Generic/patches/kodi/kodi-9993-fel-presentation-pairing.patch": "38cf275cf2314542c792c16cca550191d58a5c754e0c13ef82d11738d46b18ca",
     "projects/Generic/patches/kodi/kodi-9994-hdmi-recovery.patch": "9eb4a9d970110b37abfbdef713b04df2da5081b54e1c7aa7d3648bc015388380",
     "projects/Generic/patches/kodi/kodi-9995-diagnostics.patch": "534fb738392b2c8f6d02adf348373d487c6d42181529d1529f40024e942bbf1b",
     "projects/Generic/patches/kodi/kodi-9996-output-modes-and-info.patch": "db317835aa1273e9fea6a3b45d6493767bb7f6bc78b78d89e10a2ff50f66cd52",
     "projects/Generic/patches/kodi/kodi-9997-dv-static-metadata-latch.patch": "d5ad44d3f8ff9081528aad0d9f2702cdbf0b276645647426f243a1fd0e3cc0c7",
     "projects/Generic/patches/kodi/kodi-9998-activeae-sink-retry.patch": "5fbca2f8b7036b8a08da2ec21bcac2d5c0409a6897fc2eb6c2ac3d2fb124e5dd",
-    "projects/Generic/patches/kodi/kodi-9999-bluray-dv.patch": "09d8d140d8701fc8b15fda819d3ed6b4f6bda96c0ca738b6769b922be486ba04",
+    "projects/Generic/patches/kodi/kodi-9999-bluray-dv.patch": "638eecbe28587ce3ab2a8798da0a9db7a526b064857bc050b84b03319d84f2f0",
     "projects/Generic/patches/kodi/kodi-9999-native-screenshots.patch": "d8d752aafa58454495cb78901b24b6b52185f88ad94332035c4a90703ad88ca9",
     "projects/Generic/patches/kodi/kodi-9999-z-frame-preparation.patch": "f51bb6b5507f2f5ee369c193fe4f19b717a5de8e2e6d098390b090654a17947d",
     "projects/Generic/patches/kodi/kodi-9999-zz-beta3.patch": "794a63ca5dbd657e997cb0d2dd1f8a71363c8e1d0fd7d8bfa72efd3deda2c6b9",
@@ -50,7 +50,7 @@
   "staging": {
     "packages/mediacenter/kodi/cb1/src/CMakeLists.txt": {
       "source": "src/CMakeLists.txt",
-      "sha256": "243524ad5f9e14cdf5ea4ba2305baa45ec8bf4f40a5a0e2f3c81d0d812c9f580"
+      "sha256": "4ce354ee730f43e80919c05e3a2be337e7cd7148e9c54b1f5f7b24863a24ea4b"
     },
     "packages/mediacenter/kodi/cb1/src/PROVENANCE.json": {
       "source": "src/PROVENANCE.json",
@@ -166,11 +166,11 @@
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_creative.c": {
       "source": "src/dvbridge_creative.c",
-      "sha256": "28e6cad6971bf0dadae00eebc007fa5c96badf3795ac5697a6c8a15afba0f984"
+      "sha256": "f416a10a69bba34ab0177dfa0828cfc07ca4f0618bc8b30de26e4a3eb823e2d3"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_creative.h": {
       "source": "src/dvbridge_creative.h",
-      "sha256": "46a67f60bdc8712563bda77d01e33a63f90cf6627d8fe5d60f20cdf6fa7926a2"
+      "sha256": "6ae38c5ff9feb0f093586e41602747150c3c296128f058047e1cc4cde2f1f3c8"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_dmabuf.c": {
       "source": "src/dvbridge_dmabuf.c",
@@ -182,11 +182,11 @@
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_fel.c": {
       "source": "src/dvbridge_fel.c",
-      "sha256": "a19e01591150a2ab8abc59032824301540923266d25e5e9be542a25d2414fe1a"
+      "sha256": "65aecab61b2d1f043b5b87fd9e5024e1784eb204a55c8b33b408ccd1f5723123"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_fel.h": {
       "source": "src/dvbridge_fel.h",
-      "sha256": "1d6983253efe4341e9068cfebb9af85ff872b9df37c3dc039fecef4bcd5ba7ad"
+      "sha256": "f3fa54afecc4fe926a8d8df0c5c0580f27f7b4461222f810148cb6b77f978ad5"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_fel_seek.h": {
       "source": "src/dvbridge_fel_seek.h",
@@ -238,11 +238,11 @@
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_policy.c": {
       "source": "src/dvbridge_policy.c",
-      "sha256": "78a601c4cc38ade7a72e6bb198f158017749272cde68a3a824ec911b2a485c02"
+      "sha256": "ac0c7a4005fc8fb1bbe9fdb3225ac93a956c87beb3265ea5f80c8ccca134b615"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_policy.h": {
       "source": "src/dvbridge_policy.h",
-      "sha256": "b93e25a72251a61d4712767f16f179f7d87d210d509f2d28271bdbb6eee0dfe9"
+      "sha256": "0e56422c853a040c3178db12790ee9b7f6a7f95cf0c5ee4c811f0c5f4594c8a0"
     },
     "packages/mediacenter/kodi/cb1/src/dvbridge_render.c": {
       "source": "src/dvbridge_render.c",
@@ -270,7 +270,7 @@
     },
     "packages/mediacenter/kodi/cb1/config/extraction-origins.json": {
       "source": "config/extraction-origins.json",
-      "sha256": "18e8aa071cd59ab5605adfb000f39c23a3e7dfca2ecf22f4a2eb30a95bbec537"
+      "sha256": "b646abfea3e33b131e5df16554554fb894243faa8f14b9024d180d25d21cc632"
     },
     "packages/mediacenter/kodi/cb1/config/hdr10-ai-dependencies.json": {
       "source": "config/hdr10-ai-dependencies.json",
@@ -282,7 +282,7 @@
     },
     "packages/mediacenter/kodi/cb1/config/owned-sources.json": {
       "source": "config/owned-sources.json",
-      "sha256": "05882eb14a26e610673cbe6ba94040df915e9b3bfe9b226c33e698c1a8201b4b"
+      "sha256": "7fe1dfea3a52b67729299e3652ae82a59b76be29188caa5418ce2c70395eb356"
     },
     "packages/mediacenter/kodi/cb1-model/contract/cb1_l1l3_bundle.h": {
       "source": "models/l1l3/contract/cb1_l1l3_bundle.h",
@@ -407,6 +407,506 @@
     "packages/addons/addon-depends/multimedia-tools-depends/libplacebo/patches/libplacebo-9914-shared-mmr-intervals.patch": {
       "source": "patches/libplacebo/libplacebo-9914-shared-mmr-intervals.patch",
       "sha256": "be5a37db02a43295a72e6e9719fe1874389f1c08dca6c04aaaa77d27906b24d7"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/spatial_validation.h": {
+      "source": "src/dovi_core/spatial_validation.h",
+      "sha256": "fd3e83fcf97bdbcd747896c765405375f3c0715e12e065a4e0f08f3dbc74bdfb"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/pivot_values.h": {
+      "source": "src/dovi_core/pivot_values.h",
+      "sha256": "2b574741a7f3b421fcba268b8f6a6165041c5756553816cedb759b226a961b37"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/parser_diagnostics.h": {
+      "source": "src/dovi_core/parser_diagnostics.h",
+      "sha256": "d32fe78239d155079b29277924dc31e8a69843cdeea27cb1224d98d802cb29bb"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/resampling_filters.h": {
+      "source": "src/dovi_core/resampling_filters.h",
+      "sha256": "c97427740b0b4379bdc118bf1eb11237ef7bdf4cee15842e4dacd32b898e1688"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dv_md_parser_abi_recovered.h": {
+      "source": "src/dovi_core/dv_md_parser_abi_recovered.h",
+      "sha256": "4de3329dadf54d65e6f835b1bfc099cc26274eec5a97ff07dc0aab9ab683fa29"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_commit_abi.h": {
+      "source": "src/dovi_core/dm_commit_abi.h",
+      "sha256": "1dbaba86ed0752b71b3f777dfc5b79e34ceae390b75b0ea2daa20cf0d99929b3"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_luminance.c": {
+      "source": "src/dovi_core/control_luminance.c",
+      "sha256": "e3c56a0523305535e849fa9c95642e71259ac219224b4609d681b0acc42a40d5"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_conversion.h": {
+      "source": "src/dovi_core/composer_conversion.h",
+      "sha256": "721a35119b87f55eb1569703a0ac6a2ee4782240287a01658736a00c30fcecf2"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_init.h": {
+      "source": "src/dovi_core/rpu_init.h",
+      "sha256": "a0a5ff2bce770099cfbe17ff5770f142efa4571811406846256585f07e462ef5"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_lifecycle.h": {
+      "source": "src/dovi_core/rpu_lifecycle.h",
+      "sha256": "c3797eae54158ea6fd98823b41f3cd3e92a1929257f9ef4f8e0bce8e93f8722a"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/resampling_filters.c": {
+      "source": "src/dovi_core/resampling_filters.c",
+      "sha256": "be8eb8ee330e50a8c8127e6fbb38354515b277baa2f377cc6b2e7acb470a5ca0"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_header.c": {
+      "source": "src/dovi_core/rpu_header.c",
+      "sha256": "9b23b5b6173576b6bec2fa970121833bcb60d362edb6e219533f3e14c00b9cde"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_output_abi.h": {
+      "source": "src/dovi_core/control_output_abi.h",
+      "sha256": "bbe1e2c0cb6253f5a945e8bb02b86fe9fb9abf9556260058f2980e6786f9533b"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/kernel_maps.h": {
+      "source": "src/dovi_core/kernel_maps.h",
+      "sha256": "ece38b98a3de9ceaef6f5a215e87c309990ba266a80f34f23696f8f79de5e532"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_lifecycle.c": {
+      "source": "src/dovi_core/rpu_lifecycle.c",
+      "sha256": "da0b85a723f9141ef918fd87f0e1fa9844255f477f034d5a51e769ea9a33738e"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_curve.c": {
+      "source": "src/dovi_core/tone_curve.c",
+      "sha256": "fae32b21ef9158bd33e297511ddfbcb56c163e70c97831efb8b9a143c085e08a"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/align_to_byte.c": {
+      "source": "src/dovi_core/align_to_byte.c",
+      "sha256": "0169f89643520a9ed67b46506f25dc500efb4e1ae37bef8dc69141b9e214ee82"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_getters.h": {
+      "source": "src/dovi_core/control_getters.h",
+      "sha256": "d8c1bf8b2655c573a9143293328f7148771ceb89013dfa52e45746a17270a273"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/register_commit.c": {
+      "source": "src/dovi_core/register_commit.c",
+      "sha256": "f254ae87a81aebead9582d9b39fba07b6e527bb43baf841d02e73282ec62ca34"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dovi_bridge.c": {
+      "source": "src/dovi_core/dovi_bridge.c",
+      "sha256": "2e56cefb08eac293da4eb84ba2ba53c63234329a68e03cde124499425b1619bc"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_validation.h": {
+      "source": "src/dovi_core/composer_validation.h",
+      "sha256": "c5a3724143804e5e1a994c924fecb31f0976cf60f703064cec421f7473ee21c6"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/trim_reduction.h": {
+      "source": "src/dovi_core/trim_reduction.h",
+      "sha256": "a8080331185bea5b0dc8a554b5bd39d17ba9afd26f987a8421db7f69afdf3339"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_defaults.h": {
+      "source": "src/dovi_core/control_defaults.h",
+      "sha256": "028533e2c8a6ba64a9db1b6d0d05ce9fde3007572ca26c94ff1bf9c7dac2080b"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/metadata_init_body.h": {
+      "source": "src/dovi_core/metadata_init_body.h",
+      "sha256": "f9d1bf1f3cf46cd79e2565c9f09b6d710bf33ed8138d57b462e1fe654e30173c"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/decoder_bindings.c": {
+      "source": "src/dovi_core/decoder_bindings.c",
+      "sha256": "bb0a2a6234e457cbbe21ce9ce581be8388dac806923c01b65a561787cb980632"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_infoframe.h": {
+      "source": "src/dovi_core/control_infoframe.h",
+      "sha256": "3e4f451389f89a49fdc74d8bb3c318676dc4bf71d0d930d4421c03f593fa1e83"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_payload.c": {
+      "source": "src/dovi_core/dm_payload.c",
+      "sha256": "1728337a65d4bb6e6fe4847de2a51538f9331c7f500a3eae50ab1933449ea269"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_path.h": {
+      "source": "src/dovi_core/control_path.h",
+      "sha256": "51c7f94547d0f8d308934cd6b754b309055e5193aa409f808689c133788caf4d"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/register_commit.h": {
+      "source": "src/dovi_core/register_commit.h",
+      "sha256": "f129ad4dd6b4da8e11e39eb16de0c876677bd2a3cb4e85a7d8ed9cd3608a6ebe"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_commit.c": {
+      "source": "src/dovi_core/dm_commit.c",
+      "sha256": "8951ee7ace9dbf30a874ac89db1639620881d5862b78b6726e857fd4c8a76493"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_curve_lut_table.inc": {
+      "source": "src/dovi_core/tone_curve_lut_table.inc",
+      "sha256": "a5726dcf94cb9fbbd20a6685003edb61fcbf3302a89d50bac8e53b012723e142"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/metadata_callbacks.h": {
+      "source": "src/dovi_core/metadata_callbacks.h",
+      "sha256": "83752590bfc69e188833413787b9ae8d40c3a7cfad4bb012aaed54bdf41d069d"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_serialization.c": {
+      "source": "src/dovi_core/dm_serialization.c",
+      "sha256": "1b05271eda21d72bfef47c38d37d2fb9b135c22974101286e442056b8d685eaa"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_target.h": {
+      "source": "src/dovi_core/control_target.h",
+      "sha256": "18ea31b5e8684b06ba666e13901a29e7913f90ef8739cc4e7e629b0da8ee7c80"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/color_matrix.h": {
+      "source": "src/dovi_core/color_matrix.h",
+      "sha256": "81ca90ff042e51d36fda39de32dd68221620e318b3ffb41304d9ea8677cd9a31"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_metadata.c": {
+      "source": "src/dovi_core/control_metadata.c",
+      "sha256": "94c67123db205559ad238dfbf97235662a38582fc0d33790621ebffb87f88ff4"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_math.c": {
+      "source": "src/dovi_core/tone_math.c",
+      "sha256": "a5f4c6b89bd5811d483621d291ddecaaa0e2a79b790e6fb21d599ee408fa2598"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_bindings.c": {
+      "source": "src/dovi_core/control_bindings.c",
+      "sha256": "c585fcfd89db84981d700cf91122e57e8499070579f5aceb1bc57d6d50b5b1ea"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/trim_luminance.c": {
+      "source": "src/dovi_core/trim_luminance.c",
+      "sha256": "9f42dc1f646f8a98af3ce568f0775b3a9259ff8b79cfaf5d9e0b3765037b3ab8"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_curve_lut.h": {
+      "source": "src/dovi_core/tone_curve_lut.h",
+      "sha256": "04ee973fc811505a93256eaa6525713e381732db95911754b4e17dd111291d0f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_setters.c": {
+      "source": "src/dovi_core/rpu_setters.c",
+      "sha256": "c158fbdc0a722a3c344c1e9805fc03ec680204ac57ca87393b8e668afecea4c1"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_maps_table.inc": {
+      "source": "src/dovi_core/tone_maps_table.inc",
+      "sha256": "bca09d8d1774019914d8eb222cf534babf337038bc2708b1f0025faa5c18a3d0"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/parser_diagnostics.c": {
+      "source": "src/dovi_core/parser_diagnostics.c",
+      "sha256": "0ce3a570797a2db754be75977e5c0ca953faf29b36fe45dcb0ff6ef0a60167cc"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_commit_bindings.c": {
+      "source": "src/dovi_core/dm_commit_bindings.c",
+      "sha256": "1b1e4f5446ae3cb9a35a379a166545dbbb59f8dc702b2b709d675e1db0d2a8cf"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/detect_mel.h": {
+      "source": "src/dovi_core/detect_mel.h",
+      "sha256": "6b634bbf11178773f0375f1240fa8ae2b401cbba62c5805844b30031c20515df"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_abi_recovered.h": {
+      "source": "src/dovi_core/control_abi_recovered.h",
+      "sha256": "e7441cb069588dd11df43c5bbc982e8c5666992febb16651f34e85c9d8eaff6f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_last_output.h": {
+      "source": "src/dovi_core/rpu_last_output.h",
+      "sha256": "7985addb8f25b88605fb6e2ba258a306fe04d5c363559ad09e91ad52584240ba"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/detect_mel.c": {
+      "source": "src/dovi_core/detect_mel.c",
+      "sha256": "89756a687fc195114330e52f5c088c7e36c618957fdce6d6a657ab1c58c44377"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/color_matrix.c": {
+      "source": "src/dovi_core/color_matrix.c",
+      "sha256": "40babc6af6bfcad6313ca50aead3080757dafd02d657964fee457b047c6ffbd4"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/kernel_maps.c": {
+      "source": "src/dovi_core/kernel_maps.c",
+      "sha256": "c31b2d19adb8b38067878179814b9a02049db2a001c3b1a04c28c74f21d0aaf0"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_output.h": {
+      "source": "src/dovi_core/rpu_output.h",
+      "sha256": "c44c01503b3dfe8469513abbd405f0fd3fa4fd8706d2899ebe79a1bf6896f26c"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/luminance_pq.c": {
+      "source": "src/dovi_core/luminance_pq.c",
+      "sha256": "da74a0dfb0cf736bb85eaa5a3b5305432b54f303a59ebc489f344501ae1ff618"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/md_parser_init.h": {
+      "source": "src/dovi_core/md_parser_init.h",
+      "sha256": "b6f65cd9af2464a16cbc4a9f1994ca40765f0b49f9fb2a7d4fac5ea2f675c088"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_extensions.c": {
+      "source": "src/dovi_core/dm_extensions.c",
+      "sha256": "69e1911cb21772ca9e219aa1ff39b7acd131c0226a466c0dea44c3e5a9ee5bc2"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_controls.h": {
+      "source": "src/dovi_core/tone_controls.h",
+      "sha256": "4372f5da3f85afae9103009d8f43b6330c038dfc73b43ac242845c8decc2ac0e"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_commit.h": {
+      "source": "src/dovi_core/dm_commit.h",
+      "sha256": "834f35435317c234a06a9a44283724791c34444b1b44bae3571a474b256e4e72"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/color_matrix_tables.inc": {
+      "source": "src/dovi_core/color_matrix_tables.inc",
+      "sha256": "16fa06791a5c2b788b73fd864b21e80196741c1026765223e2236b150d27a922"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_curve.h": {
+      "source": "src/dovi_core/tone_curve.h",
+      "sha256": "0d3fc4a645799045ef38464437dd3c9cef6c37a6c5ed56c3c5e9267d619c315c"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/metadata_bindings.h": {
+      "source": "src/dovi_core/metadata_bindings.h",
+      "sha256": "0c82876a5d61202ad927b68c68320ece59d80431f752589214cab70bb99a5942"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/trim_luminance.h": {
+      "source": "src/dovi_core/trim_luminance.h",
+      "sha256": "06fdc04da2de117e0ca6625442079bf4614ee1ad9bd806735db96209ea0a197c"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_setters.h": {
+      "source": "src/dovi_core/rpu_setters.h",
+      "sha256": "173132915b04b1e6ab6028ffa663565b6e50a70ca9f9f177a37ec63cb5ff2e60"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_push_data.h": {
+      "source": "src/dovi_core/rpu_push_data.h",
+      "sha256": "d91adf2b49a2051e50c4bdb9e51cb1d35085235557c226312ae9a51e141b572f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_output.c": {
+      "source": "src/dovi_core/rpu_output.c",
+      "sha256": "be19e4f424ed8546c177606f2b9008fc9afe0fdeba3363ccc245656e1644a7b3"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_init.c": {
+      "source": "src/dovi_core/control_init.c",
+      "sha256": "5d273538e71ffc1e23fd1f9763823af5b094ee6edb15c91365bd320d99622acf"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/luminance_tables.inc": {
+      "source": "src/dovi_core/luminance_tables.inc",
+      "sha256": "edcd08e5758992b6ffa8d0532cd865ad93c1cfb3036b0e605dca5c4214407984"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_controls.c": {
+      "source": "src/dovi_core/tone_controls.c",
+      "sha256": "c29563116a5975d3045e1cbd22b8d005caf5fceb3bc48f7fb2cf341e5570dcf0"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/crc32.c": {
+      "source": "src/dovi_core/crc32.c",
+      "sha256": "583c43a3af9f78c408bca1ba5fca4cc10fb67c1dce0c45c4019c179511a9d8aa"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_registers.c": {
+      "source": "src/dovi_core/composer_registers.c",
+      "sha256": "12472a2d286fb5911b8f6c7b371b91c68811bcfafd44b238967dcc28f81435ae"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/luminance_pq.h": {
+      "source": "src/dovi_core/luminance_pq.h",
+      "sha256": "a8ab07174bde03197936ddc7e2bd3d1882332fd5acd3f9a698c7df676be0a0fd"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/byte_utils.h": {
+      "source": "src/dovi_core/byte_utils.h",
+      "sha256": "be46db05358eb13f6d796f9e713640503dbf6f5f144ea447d5b26b9f6aaedb1d"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/pivot_values.c": {
+      "source": "src/dovi_core/pivot_values.c",
+      "sha256": "c121a59a0fbb3f6e9a3cc311ef2fb4c10bc228f5b14c4f4a1d60ebf16239c7da"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_maps.h": {
+      "source": "src/dovi_core/tone_maps.h",
+      "sha256": "e41c1e198a9c6d7c7671f4825e3fe72fc92c69eb92abb5553a4e833a08f08b2d"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/trim_reduction.c": {
+      "source": "src/dovi_core/trim_reduction.c",
+      "sha256": "bc1743a8ddfbfd1f96881f5f66f07d09474bfeb851d37c13e470ca773d3c12a8"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_graphics.c": {
+      "source": "src/dovi_core/control_graphics.c",
+      "sha256": "c35922e2f5498683893ab51e43a12c3827173eeb0df715d90f1f105f2fe4336c"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_metadata.h": {
+      "source": "src/dovi_core/control_metadata.h",
+      "sha256": "aec3e0fd13a8ed51f244d34f7d58b70ea1d027eeb1e44419b021dc0a70edbb6a"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/memory_query.c": {
+      "source": "src/dovi_core/memory_query.c",
+      "sha256": "28e89fef016a59b0800e1f52bdb3b74e703646da87f7b25861e8bfc17bf8b89f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dovi_abi_recovered.h": {
+      "source": "src/dovi_core/dovi_abi_recovered.h",
+      "sha256": "b9d64aa2ad1f7b62591baf173e8ac1068c20a74a58835b799c3a56b77a867529"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/align_to_byte.h": {
+      "source": "src/dovi_core/align_to_byte.h",
+      "sha256": "27e972d759fbda2f5ab0d7f3ef92115de9f91cfea0052fc4252a15e12301e7f4"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_validation.c": {
+      "source": "src/dovi_core/composer_validation.c",
+      "sha256": "4dbafd7c18387b6a099330f31260fe3e0b18407a50434fbe62691f4a05003d18"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_infoframe.c": {
+      "source": "src/dovi_core/control_infoframe.c",
+      "sha256": "79ea95cb112ef5490e99b4900742d134d2f4ebe61c19c1fb9b7527c2b196f83f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_math.h": {
+      "source": "src/dovi_core/tone_math.h",
+      "sha256": "b0d57db3d2211577961896f13fe65efb6251de5e4ac8e28f04e6b5e6f3eac222"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/decoder_bindings.h": {
+      "source": "src/dovi_core/decoder_bindings.h",
+      "sha256": "017e042a4a30434ecbf0d2c214bd93b7260564b0c88a6e243b0bea6d78776ace"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_curve_lut.c": {
+      "source": "src/dovi_core/tone_curve_lut.c",
+      "sha256": "fe5d7e345c18cdf07301b27c5d83ff028cf3d6d29cd6a3550e88fd63cf764956"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_getters.c": {
+      "source": "src/dovi_core/control_getters.c",
+      "sha256": "d7f9a1bfed22f338c7eec35f8dc32e14429e2bdfc464099eaca16fca09d86986"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_validation.h": {
+      "source": "src/dovi_core/rpu_validation.h",
+      "sha256": "309f94ff0325d140dce5dce38df57f43d3cc572609f9ef8fb846c219ff7c7971"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_header.h": {
+      "source": "src/dovi_core/rpu_header.h",
+      "sha256": "f278317a62d046b67b288e4e78959a91a7864d7bab397aac74eb8f180f759a24"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/kernel_maps_bindings.c": {
+      "source": "src/dovi_core/kernel_maps_bindings.c",
+      "sha256": "82eeb9247b7004d391d847742f576caf075fe8f4ce37c505ea2c2a7044cf0d8f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/bitstream.h": {
+      "source": "src/dovi_core/bitstream.h",
+      "sha256": "c8d5a7c2c065c2b0caa6b5aced2432c8bca956d55b94a606aee92c4c6153bad3"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_parameters.h": {
+      "source": "src/dovi_core/tone_parameters.h",
+      "sha256": "152101ab6be20122c41e4f1ea7442ec755a42172656f924a37afbdc3c9ce12f4"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_serialization.h": {
+      "source": "src/dovi_core/dm_serialization.h",
+      "sha256": "b5e89eb2380f94551b5c0a9b33012d4aa64355b02e739055a2627284623d9479"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/ext_blocks.c": {
+      "source": "src/dovi_core/ext_blocks.c",
+      "sha256": "664acd5600e0b0cd8cd0f21bd3527b135ebfb063dd785b02b8ff92e7817b1d9c"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_payload.h": {
+      "source": "src/dovi_core/dm_payload.h",
+      "sha256": "4e896561ba9e872c8d429228b82a67ec2336335daa6f4074e567de3fc6aaa3f1"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/spatial_validation.c": {
+      "source": "src/dovi_core/spatial_validation.c",
+      "sha256": "52d1ebcb528e2301ba873a5910c69f07048c67bba3f7a74d8e63b17edd2790bf"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dovi_engine.h": {
+      "source": "src/dovi_core/dovi_engine.h",
+      "sha256": "293f7f44ac589877e7be4ddc6f5b8f27777669054604ac68fdc472b5d10d75a2"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_target_tables.inc": {
+      "source": "src/dovi_core/control_target_tables.inc",
+      "sha256": "5f1d77593b555f58830419b9ade091b0c4e75c56a670aedc2be2424bcb98f229"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_maps.c": {
+      "source": "src/dovi_core/tone_maps.c",
+      "sha256": "18affdf260708894d5aaf5ec63555b40168b0e5aab8c95b97cb2452939575801"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_runtime.h": {
+      "source": "src/dovi_core/control_runtime.h",
+      "sha256": "265ef71946a04acefd8c554a042ffee8bd0915ce126ec450eeb26984a024ca15"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_init.c": {
+      "source": "src/dovi_core/rpu_init.c",
+      "sha256": "259ca4df14b3a81097cde7e12b2b268d0cbcdef0018e95f9c7076326d73c9e6e"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_tables.inc": {
+      "source": "src/dovi_core/tone_tables.inc",
+      "sha256": "c7dd8393e204789ccb5a2ed7786ffc674816ba6588c2497f5b77f38fd0de7cd0"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_commit_bindings.h": {
+      "source": "src/dovi_core/dm_commit_bindings.h",
+      "sha256": "7a0345ed1f6a751f56c66224aa89a27a3b3e93560ca9dfb0c89d8ec22f3595cd"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dovi_bridge.h": {
+      "source": "src/dovi_core/dovi_bridge.h",
+      "sha256": "6eef46e60e8e4a3f47a3acc8192321ca5a879627d162b3ddf668b00782144061"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/crc32.h": {
+      "source": "src/dovi_core/crc32.h",
+      "sha256": "a41eabe3d2f7b84c5aeca66b5dc2576e81f24d4b63fadefb4a4e86a9d39ff918"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/memory_query.h": {
+      "source": "src/dovi_core/memory_query.h",
+      "sha256": "cd1eee1ccfa59b5c7d9d640bd4b9634f6f4f2ed955224be44270d6141303fbf9"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dm_commit_tables.inc": {
+      "source": "src/dovi_core/dm_commit_tables.inc",
+      "sha256": "4bf9ead518e11e08d1865067fee707e9c053aaa39ddd6b5d87c25c97960b6d99"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_payload.c": {
+      "source": "src/dovi_core/rpu_payload.c",
+      "sha256": "99ef894a3c5b07e05c9959f194244cc18b1e0b1af185d7b84ea7d26d4235208a"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_path.c": {
+      "source": "src/dovi_core/control_path.c",
+      "sha256": "94c7d37c0fd778d7119ac62835ea18349b803e12c80839f634d133aa517e202b"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_init.h": {
+      "source": "src/dovi_core/control_init.h",
+      "sha256": "17198a4d25271ecd888e7aac16e6c2cf6e45a6ff07c36d084d6f6e2b9e847b17"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_luminance.h": {
+      "source": "src/dovi_core/control_luminance.h",
+      "sha256": "d3a3d7405e5a03459ec2c2a0cdb39340c91b1833d74404cb6fc05e15dd49317b"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/PROVENANCE.json": {
+      "source": "src/dovi_core/PROVENANCE.json",
+      "sha256": "6dc70b442f9ee4470b3a9c847125462b15d593a75414a9603504809a0ba53ecd"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_conversion.c": {
+      "source": "src/dovi_core/composer_conversion.c",
+      "sha256": "41acb76858fb4d21c6c42a95c896f7697a645d15b92cea49ea4326500e0696cc"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/tone_parameters.c": {
+      "source": "src/dovi_core/tone_parameters.c",
+      "sha256": "f9e8282f472caa0a83b6e63f761e381d32be8dd0ac7e902f52c43eb4ed9e176e"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/bitstream.c": {
+      "source": "src/dovi_core/bitstream.c",
+      "sha256": "3933c8e5a76a62f8a2f144d5092d0839bc97758d37ce861d4ee1aeaad3719cc9"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/byte_utils.c": {
+      "source": "src/dovi_core/byte_utils.c",
+      "sha256": "f2bdcbd1719da82a138d6eb949ccee5aa434af1680d193cff07489a88fd9c935"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_runtime.c": {
+      "source": "src/dovi_core/control_runtime.c",
+      "sha256": "b1a0dac0724163f6c6f3ab1171ad02e7d8aeadddf30e962cee1c193d84a1f40b"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_defaults.c": {
+      "source": "src/dovi_core/control_defaults.c",
+      "sha256": "123eeaa3d17f9f556ea822413527b4b0ae3f7130bf39d60f7893086b59572b3d"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_registers_abi.h": {
+      "source": "src/dovi_core/composer_registers_abi.h",
+      "sha256": "32a490831880498e1ab7865aa5b8bb92a39099beb040c805284e9f3d5817b366"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/composer_registers.h": {
+      "source": "src/dovi_core/composer_registers.h",
+      "sha256": "c8a4aaa91ac9859b619a579b2d9cae7174d2a71cde7fbdb7580b7a2653d3125f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_last_output.c": {
+      "source": "src/dovi_core/rpu_last_output.c",
+      "sha256": "8c285f97531993bb4d2ce04ad8a881aef3ac858ee594e956c869f6c56493814d"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_bindings.h": {
+      "source": "src/dovi_core/control_bindings.h",
+      "sha256": "555fd69c0d013910d711c236598330bf342250a33fbfd72221e72975f5a20b29"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_push_data.c": {
+      "source": "src/dovi_core/rpu_push_data.c",
+      "sha256": "c8636bd7cd1cadf06ca1bc481f977050b001af9e6044c6063147d65ba8535b83"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/trim_tables.inc": {
+      "source": "src/dovi_core/trim_tables.inc",
+      "sha256": "72f11cba08104ebf5f7f7d42c1b7245cb8edb0ae18cc1d8fecc8918687ee9b34"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/dovi_engine.c": {
+      "source": "src/dovi_core/dovi_engine.c",
+      "sha256": "1d3fb3b3ec5fa14b3ae3bf3e17f0b36b2401d1a3492bdffc5bb4a18a3666a3a3"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_payload.h": {
+      "source": "src/dovi_core/rpu_payload.h",
+      "sha256": "d8136618da17257fc8a50a0e3894fd421fe8de29ff333196dc69c83de6af23e2"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/rpu_validation.c": {
+      "source": "src/dovi_core/rpu_validation.c",
+      "sha256": "0517fbd983582c4f62f221d664fdc03a503956b93f58f160ed310dfc064e418f"
+    },
+    "packages/mediacenter/kodi/cb1/src/dovi_core/control_target.c": {
+      "source": "src/dovi_core/control_target.c",
+      "sha256": "0806d314ea4d41fb6e38b5d1b54a4da2fdddeb8fdc59c44ff1516e2d1b89f0d2"
     }
   }
 }

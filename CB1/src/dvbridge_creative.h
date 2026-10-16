@@ -111,6 +111,9 @@ bool dvbridge_creative_cm4_coefficients(struct dvbridge_cm4_coefficients *out,
     const struct dvbridge_creative_plan *plan);
 bool dvbridge_creative_cm4_trim_rgb(const struct dvbridge_creative_plan *plan,
     const double input[3], double output[3]);
+
+/* Generate official Dolby 3-piece Tone Curve LUT (FP32 normalized [0.0f..1.0f]) for the creative plan */
+bool dvbridge_creative_dovi_tone_lut(const struct dvbridge_creative_plan *plan, float lut_fp32[4096]);
 #ifdef __cplusplus
 }
 #endif

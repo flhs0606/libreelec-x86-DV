@@ -791,3 +791,26 @@ bool dvbridge_creative_trim_rgb(const struct dvbridge_creative_plan *p,const dou
     for(int i=0;i<3;i++)out[i]=(gain && y>0 && v[i]>0)?v[i]*pow((1+chroma)*v[i]/y,gain):v[i];
     return isfinite(out[0]) && isfinite(out[1]) && isfinite(out[2]);
 }
+
+#include "dovi_engine.h"
+
+bool dvbridge_creative_dovi_tone_lut(const struct dvbridge_creative_plan *p, float lut_fp32[4096])
+{
+    if (!p || !lut_fp32 || p->status == DVBRIDGE_CREATIVE_INVALID)
+        return false;
+
+    int src_min_pq = p->analysis[0];
+    int src_max_pq = p->analysis[1] > 0 ? p->analysis[1] : 3079;
+    int tgt_min_pq = 62;
+    int tgt_max_pq = (int)lround(p->target_pq);
+    if (tgt_max_pq <= 0) tgt_max_pq = 3079;
+
+    int trim_slope = (int)lround((p->codes[0] - 2048.0) * (268435456.0 / 2048.0));
+    int trim_offset = (int)lround((p->codes[1] - 2048.0) * (268435456.0 / 2048.0));
+    int trim_power = (int)lround((p->codes[2] - 2048.0) * (268435456.0 / 2048.0));
+
+    return cb1_dovi_generate_tone_lut_fp32(src_min_pq, src_max_pq,
+                                           tgt_min_pq, tgt_max_pq,
+                                           trim_slope, trim_offset, trim_power,
+                                           lut_fp32);
+}

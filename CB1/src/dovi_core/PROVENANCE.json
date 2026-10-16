@@ -1,0 +1,8 @@
+{
+  "component": "dovi_core",
+  "origin": "https://github.com/pannal/linux-amlogic/pull/10",
+  "upstream_commit": "a0a16d811199e27d36fbc443d2419652a2e9d7bf",
+  "attribution": "thatfunkymunki (P3i T4c scalar dovi.ko reverse-engineered implementation)",
+  "license": "GPL-2.0-only",
+  "scope": "Scalar RPU parsing, VSVDB decode, 3-piece tone curve generation and trim reduction algorithms"
+}

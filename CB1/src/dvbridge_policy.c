@@ -28,3 +28,29 @@ bool dvbridge_identity_equal(const struct dvbridge_identity *a, const struct dvb
     return a && b && a->stream == b->stream && a->picture == b->picture &&
            a->revision == b->revision;
 }
+
+#include "dovi_engine.h"
+
+bool dvbridge_policy_apply_vsvdb(struct dvbridge_tv_profile *tv, const uint8_t vsvdb[32])
+{
+    if (!tv || !vsvdb) return false;
+    struct cb1_dovi_target_desc target;
+    if (cb1_dovi_vsvdb_parse(vsvdb, &target) != 0 || target.max_nits <= 0.0)
+        return false;
+
+    tv->peak_nits = target.max_nits;
+
+    /* Classify gamut from primary red coordinate (target.rx) */
+    if (target.rx >= 0.68) {
+        tv->gamut = DVBRIDGE_GAMUT_BT2020;
+    } else if (target.rx >= 0.65) {
+        tv->gamut = DVBRIDGE_GAMUT_P3_D65;
+    } else {
+        tv->gamut = DVBRIDGE_GAMUT_BT709;
+    }
+
+    if (tv->panel == DVBRIDGE_PANEL_UNSET) {
+        tv->panel = (target.min_nits <= 0.005) ? DVBRIDGE_PANEL_OLED : DVBRIDGE_PANEL_LCD;
+    }
+    return true;
+}

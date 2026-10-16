@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619ecc613c0c
 --- /dev/null
 +++ b/xbmc/cores/VideoPlayer/DVDDemuxers/BlurayDovi.h
-@@ -0,0 +1,414 @@
+@@ -0,0 +1,276 @@
 +/* SPDX-License-Identifier: GPL-2.0-or-later */
 +#pragma once
 +
@@ -33,14 +33,13 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    m_bytes = 0;
 +    m_lastBasePts = AV_NOPTS_VALUE;
 +    m_lastElPts = AV_NOPTS_VALUE;
-+    m_lastTakenBasePts = AV_NOPTS_VALUE;
 +    m_lastElNalType = -1;
 +    m_hasLayer = false;
-+    m_inTransition = false;
 +    m_eof = false;
 +  }
 +
 +  void SetEOF() { m_eof = true; }
++  void SetHasLayer(bool hasLayer) { m_hasLayer = hasLayer; }
 +
 +  bool Push(const AVPacket* packet, bool enhancement)
 +  {
@@ -53,8 +52,8 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +    if (!enhancement)
 +    {
-+      // Reassemble continuation BL packets (without PTS, or matching previous PTS)
-+      if (packet->pts == AV_NOPTS_VALUE || (!m_base.empty() && packet->pts == m_base.back()->pts))
++      // If continuation BL packet without PTS, reassemble into back of m_base
++      if (packet->pts == AV_NOPTS_VALUE)
 +      {
 +        if (!m_base.empty())
 +        {
@@ -72,41 +71,21 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      if (m_base.size() >= MAX_PACKETS)
 +        DropOldest();
 +
-+      // Seamless branching backward time jump detection (> 2.0s negative jump)
-+      if (m_lastBasePts != AV_NOPTS_VALUE && packet->pts != AV_NOPTS_VALUE &&
-+          packet->pts < m_lastBasePts - 90000 * 2)
-+      {
-+        m_inTransition = true;
-+        CLog::Log(LOGDEBUG, "DV Blu-ray: BL transition detected: {} -> {}", m_lastBasePts, packet->pts);
-+      }
-+      m_lastBasePts = packet->pts;
-+
-+      // Scan and strip HEVC EOS (36) and EOB (37) NALs from Base Layer (nalSize == 2)
-+      Packet owned;
-+      if (ContainsEosNal(packet->data, packet->size))
-+      {
-+        CLog::Log(LOGDEBUG, "DV Blu-ray: stripping BL EOS/EOB NAL units");
-+        auto filtered = StripEosNalUnits(packet->data, packet->size);
-+        owned.reset(av_packet_alloc());
-+        if (owned && av_new_packet(owned.get(), filtered.size()) >= 0)
-+        {
-+          std::memcpy(owned->data, filtered.data(), filtered.size());
-+          av_packet_copy_props(owned.get(), packet);
-+        }
-+        else
-+        {
-+          owned.reset(av_packet_clone(packet));
-+        }
-+      }
-+      else
-+      {
-+        owned.reset(av_packet_clone(packet));
-+      }
-+
++      Packet owned(av_packet_clone(packet));
 +      if (!owned)
 +        return true;
 +
-+      m_bytes += owned->size;
++      // Seamless branching backward time jump detection (> 2.0s negative jump)
++      if (m_lastBasePts != AV_NOPTS_VALUE && packet->pts < m_lastBasePts - 90000 * 2)
++      {
++        for (const auto& [p, u] : m_enhancement)
++          m_bytes -= (u.layer.size() + u.rpu.size());
++        m_enhancement.clear();
++        m_lastElNalType = -1;
++      }
++      m_lastBasePts = packet->pts;
++
++      m_bytes += packet->size;
 +      m_base.push_back(std::move(owned));
 +      return true;
 +    }
@@ -122,11 +101,6 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    }
 +    else
 +    {
-+      if (m_lastElPts != AV_NOPTS_VALUE && pts < m_lastElPts - 90000 * 2)
-+      {
-+        m_inTransition = true;
-+        CLog::Log(LOGDEBUG, "DV Blu-ray: EL transition detected: {} -> {}", m_lastElPts, pts);
-+      }
 +      m_lastElPts = packet->pts;
 +    }
 +
@@ -147,25 +121,19 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      if (size >= 2 && !(packet->data[begin[1]] & 0x80) && (packet->data[begin[1] + 1] & 7))
 +      {
 +        const int type = (packet->data[begin[1]] >> 1) & 63;
-+        // Intercept and strip HEVC EOS (36) and EOB (37) NALs from Enhancement Layer
++        // Strip EOS (36) and EOB (37) NALs
 +        if (size == 2 && (type == 36 || type == 37))
 +        {
-+          CLog::Log(LOGDEBUG, "DV Blu-ray: stripping EL EOS/EOB NAL type={}", type);
 +          begin = next;
 +          continue;
 +        }
 +
 +        m_lastElNalType = type;
-+        if (type == 62)
-+        {
-+          rpu.insert(rpu.end(), {0, 0, 0, 1});
-+          rpu.insert(rpu.end(), packet->data + begin[1], packet->data + next[0]);
-+        }
-+        else
-+        {
-+          layer.insert(layer.end(), {0, 0, 0, 1, 0x7e, 1});
-+          layer.insert(layer.end(), packet->data + begin[1], packet->data + next[0]);
-+        }
++        auto& destination = (type == 62) ? rpu : layer;
++        destination.insert(destination.end(), {0, 0, 0, 1});
++        if (type != 62)
++          destination.insert(destination.end(), {0x7e, 1});
++        destination.insert(destination.end(), packet->data + begin[1], packet->data + next[0]);
 +      }
 +      begin = next;
 +    }
@@ -179,12 +147,7 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +      if (!layer.empty())
 +        unit.layer.insert(unit.layer.end(), layer.begin(), layer.end());
 +      if (!rpu.empty())
-+      {
-+        if (unit.rpu.empty())
-+          unit.rpu = std::move(rpu);
-+        else
-+          CLog::Log(LOGDEBUG, "DV Blu-ray: unit at pts {} already has RPU, keeping first", pts);
-+      }
++        unit.rpu.insert(unit.rpu.end(), rpu.begin(), rpu.end());
 +
 +      m_bytes += layer.size() + rpu.size();
 +    }
@@ -194,37 +157,12 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +  int Take(AVPacket* output)
 +  {
-+    // 1-frame lookahead gate: never emit incomplete 4K frame before all its continuation slices arrive
-+    if (m_base.empty() || (m_base.size() < 2 && !m_eof))
++    if (m_base.empty())
 +      return AVERROR(EAGAIN);
 +
 +    auto& basePkt = m_base.front();
 +    const int64_t targetPts = basePkt->pts;
 +
-+    // Check if Take() has crossed into the new segment
-+    if (m_lastTakenBasePts != AV_NOPTS_VALUE && targetPts != AV_NOPTS_VALUE &&
-+        targetPts < m_lastTakenBasePts - 90000 * 2)
-+    {
-+      CLog::Log(LOGDEBUG,
-+                "DV Blu-ray: Take crossed seam to new segment (pts {} < last taken {}). Purging old segment stragglers.",
-+                targetPts, m_lastTakenBasePts);
-+      for (auto it = m_enhancement.begin(); it != m_enhancement.end(); )
-+      {
-+        if (it->first > targetPts + 90000 * 2)
-+        {
-+          m_bytes -= (it->second.layer.size() + it->second.rpu.size());
-+          it = m_enhancement.erase(it);
-+        }
-+        else
-+        {
-+          ++it;
-+        }
-+      }
-+      m_inTransition = false;
-+      m_lastTakenBasePts = targetPts; // Update immediately to eliminate duplicate logs on EAGAIN
-+    }
-+
-+    // Do NOT discard orphan packets without PTS: emit as standalone Base Layer!
 +    if (targetPts == AV_NOPTS_VALUE)
 +    {
 +      av_packet_move_ref(output, basePkt.get());
@@ -239,9 +177,7 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    {
 +      const auto& unit = it->second;
 +      const int baseSize = basePkt->size;
-+      const bool blHasRpu = ContainsRpuNal(basePkt->data, basePkt->size);
-+      const size_t rpuSize = blHasRpu ? 0 : unit.rpu.size();
-+      const size_t extra = unit.layer.size() + rpuSize;
++      const size_t extra = unit.layer.size() + unit.rpu.size();
 +
 +      Packet joined(av_packet_clone(basePkt.get()));
 +      if (!joined || (extra > 0 && av_grow_packet(joined.get(), extra) < 0))
@@ -249,36 +185,30 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +        av_packet_move_ref(output, basePkt.get());
 +        m_bytes -= basePkt->size;
 +        m_base.pop_front();
-+        m_lastTakenBasePts = targetPts;
 +        return 0;
 +      }
 +
 +      if (!unit.layer.empty())
 +        std::memcpy(joined->data + baseSize, unit.layer.data(), unit.layer.size());
-+      if (rpuSize > 0)
-+        std::memcpy(joined->data + baseSize + unit.layer.size(), unit.rpu.data(), rpuSize);
++      if (!unit.rpu.empty())
++        std::memcpy(joined->data + baseSize + unit.layer.size(), unit.rpu.data(), unit.rpu.size());
 +
 +      m_bytes -= (baseSize + extra);
 +      av_packet_move_ref(output, joined.get());
 +
 +      m_base.pop_front();
 +      m_enhancement.erase(it);
-+      m_lastTakenBasePts = targetPts;
 +
-+      if (!m_inTransition)
-+        CleanStale(targetPts);
++      CleanStale(targetPts);
 +      return 0;
 +    }
 +
-+    // 2. Anti-starvation fallback: if Base Layer accumulates beyond threshold without matching EL,
-+    // emit as standalone Base Layer (HDR10) to prevent any hang or freeze.
-+    if (m_base.size() >= STARVATION_THRESHOLD)
++    // 2. Anti-starvation fallback: if Base Layer accumulates >= 32 frames without matching EL, emit standalone
++    if (m_base.size() >= STARVATION_THRESHOLD || m_eof)
 +    {
-+      CLog::Log(LOGWARNING, "DV Blu-ray: Take STARVATION fallback BL pts={} q_base={}", targetPts, m_base.size());
 +      av_packet_move_ref(output, basePkt.get());
 +      m_bytes -= basePkt->size;
 +      m_base.pop_front();
-+      m_lastTakenBasePts = targetPts;
 +      return 0;
 +    }
 +
@@ -289,7 +219,7 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +private:
 +  static constexpr size_t MAX_PACKETS = 256;
-+  static constexpr size_t STARVATION_THRESHOLD = 64;
++  static constexpr size_t STARVATION_THRESHOLD = 32;
 +  static constexpr size_t MAX_BYTES = 128u * 1024u * 1024u;
 +
 +  struct Release { void operator()(AVPacket* p) const { av_packet_free(&p); } };
@@ -316,70 +246,6 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +    return {size, size};
 +  }
 +
-+  static bool ContainsEosNal(const uint8_t* data, int size)
-+  {
-+    auto begin = Start(data, size, 0);
-+    while (begin[0] < size)
-+    {
-+      const auto next = Start(data, size, begin[1]);
-+      const int nalSize = next[0] - begin[1];
-+      if (nalSize == 2)
-+      {
-+        const int type = (data[begin[1]] >> 1) & 63;
-+        if (type == 36 || type == 37)
-+          return true;
-+      }
-+      begin = next;
-+    }
-+    return false;
-+  }
-+
-+  static bool ContainsRpuNal(const uint8_t* data, int size)
-+  {
-+    auto begin = Start(data, size, 0);
-+    while (begin[0] < size)
-+    {
-+      const auto next = Start(data, size, begin[1]);
-+      if (next[0] - begin[1] >= 2)
-+      {
-+        const int type = (data[begin[1]] >> 1) & 63;
-+        if (type == 62)
-+          return true;
-+      }
-+      begin = next;
-+    }
-+    return false;
-+  }
-+
-+  static std::vector<uint8_t> StripEosNalUnits(const uint8_t* data, int size)
-+  {
-+    std::vector<uint8_t> filtered;
-+    filtered.reserve(size);
-+    auto begin = Start(data, size, 0);
-+    if (begin[0] > 0)
-+    {
-+      filtered.insert(filtered.end(), data, data + begin[0]);
-+    }
-+    while (begin[0] < size)
-+    {
-+      const auto next = Start(data, size, begin[1]);
-+      const int nalSize = next[0] - begin[1];
-+      if (nalSize == 2)
-+      {
-+        const int type = (data[begin[1]] >> 1) & 63;
-+        if (type == 36 || type == 37)
-+        {
-+          begin = next;
-+          continue;
-+        }
-+      }
-+      filtered.insert(filtered.end(), {0, 0, 0, 1});
-+      filtered.insert(filtered.end(), data + begin[1], data + next[0]);
-+      begin = next;
-+    }
-+    return filtered;
-+  }
-+
 +  void DropOldest()
 +  {
 +    if (!m_base.empty())
@@ -397,8 +263,6 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +
 +  void CleanStale(int64_t currentPts)
 +  {
-+    if (m_inTransition || currentPts == AV_NOPTS_VALUE)
-+      return;
 +    while (!m_enhancement.empty() && m_enhancement.begin()->first < currentPts - 90000 * 2)
 +    {
 +      auto it = m_enhancement.begin();
@@ -412,10 +276,8 @@ index 0000000000000000000000000000000000000000..d86acf5979ef283a3341b28bfee7619e
 +  size_t m_bytes{0};
 +  int64_t m_lastBasePts{AV_NOPTS_VALUE};
 +  int64_t m_lastElPts{AV_NOPTS_VALUE};
-+  int64_t m_lastTakenBasePts{AV_NOPTS_VALUE};
 +  int m_lastElNalType{-1};
 +  bool m_hasLayer{false};
-+  bool m_inTransition{false};
 +  bool m_eof{false};
 +};
 diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.cpp b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.cpp
@@ -430,7 +292,7 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
  #include "cores/VideoPlayer/DVDStreamInfo.h"
  #include "cores/VideoPlayer/DVDCodecs/Video/DVPlaybackPolicy.h"
  extern "C"
-@@ -730,6 +731,10 @@ bool CDVDDemuxFFmpeg::Open(const std::shared_ptr<CDVDInputStream>& pInput, bool
+@@ -730,6 +731,11 @@ bool CDVDDemuxFFmpeg::Open(const std::shared_ptr<CDVDInputStream>& pInput, bool
  
  void CDVDDemuxFFmpeg::Dispose()
  {
@@ -438,6 +300,7 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
 +  m_blurayDovi.reset();
 +  m_blurayBase = m_blurayEnhancement = -1;
 +#endif
++  m_blurayInitialStartTime = 0.0;
    m_pkt.result = -1;
    av_packet_unref(&m_pkt.pkt);
  
@@ -452,19 +315,28 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
    if (m_pFormatContext)
    {
      if (m_pFormatContext->pb)
-@@ -1060,6 +1060,11 @@
-   double timestamp = (double)pts * num / den;
-   double starttime = 0.0;
+@@ -1118,6 +1118,20 @@
+   if (m_checkTransportStream)
+     starttime = m_startTime;
  
 +  if (m_pInput && m_pInput->IsStreamType(DVDSTREAM_TYPE_BLURAY))
 +  {
-+    return timestamp * DVD_TIME_BASE;
++    if (starttime > 0.0)
++    {
++      if (m_blurayInitialStartTime <= 0.0 || starttime < m_blurayInitialStartTime)
++        m_blurayInitialStartTime = starttime;
++      starttime = m_blurayInitialStartTime;
++    }
++    double diff = timestamp - starttime;
++    if (diff < 0.0)
++      diff = 0.0;
++    return diff * DVD_TIME_BASE;
 +  }
 +
-   const std::shared_ptr<CDVDInputStream::IMenus> menuInterface =
-       std::dynamic_pointer_cast<CDVDInputStream::IMenus>(m_pInput);
-   if ((!menuInterface || menuInterface->GetSupportedMenuType() != MenuType::NATIVE) &&
-@@ -1106,8 +1111,40 @@
+   if (!m_bSup)
+   {
+     if (timestamp > starttime || m_checkTransportStream)
+@@ -1164,6 +1175,40 @@ DemuxPacket* CDVDDemuxFFmpeg::ReadInternal(bool keep)
  
          // timeout reads after 100ms
          m_timeout.Set(20s);
@@ -472,9 +344,9 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
 +        m_pkt.result = m_blurayDovi ? ReadBlurayDovi(&m_pkt.pkt) :
 +            av_read_frame(m_pFormatContext, &m_pkt.pkt);
 +#else
-         m_pkt.result = av_read_frame(m_pFormatContext, &m_pkt.pkt);
++        m_pkt.result = av_read_frame(m_pFormatContext, &m_pkt.pkt);
 +#endif
-         m_timeout.SetInfinite();
++        m_timeout.SetInfinite();
 +
 +        if (m_pkt.result >= 0 && (m_pkt.pkt.flags & AV_PKT_FLAG_CORRUPT) &&
 +            m_pInput && m_pInput->IsStreamType(DVDSTREAM_TYPE_BLURAY))
@@ -505,7 +377,7 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
        }
  
        if (m_pkt.result == AVERROR(EINTR) || m_pkt.result == AVERROR(EAGAIN))
-@@ -1645,6 +1659,9 @@ double CDVDDemuxFFmpeg::SelectAspect(AVStream* st, bool& forced)
+@@ -1645,6 +1688,9 @@ double CDVDDemuxFFmpeg::SelectAspect(AVStream* st, bool& forced)
  
  void CDVDDemuxFFmpeg::CreateStreams(unsigned int program)
  {
@@ -557,7 +429,7 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
        continue;
      CDemuxStream* stream = GetStream(idx);
      if (!stream)
-@@ -2885,6 +2915,105 @@ void CDVDDemuxFFmpeg::GetL16Parameters(int &channels, int &samplerate)
+@@ -2885,6 +2915,104 @@ void CDVDDemuxFFmpeg::GetL16Parameters(int &channels, int &samplerate)
    }
  }
  
@@ -658,26 +530,11 @@ index 2810175f56681f0d06270fd008001215fac70585..0af180beb468ab8ceb6567a10224a674
 +  }
 +  return result;
 +}
-+#endif
-+
- StreamHdrType CDVDDemuxFFmpeg::DetermineHdrType(AVStream* pStream)
- {
-   StreamHdrType hdrType = StreamHdrType::HDR_TYPE_NONE;
-diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
-index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c066f17cd5 100644
---- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
-+++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemuxFFmpeg.h
-@@ -20,6 +20,9 @@ extern "C" {
- }
- 
- class CDVDDemuxFFmpeg;
-+#ifdef HAVE_DVBRIDGE
-+class CBlurayDovi;
-+#endif
+++#endif
  class CDVDInputStream;
  class CURL;
  struct ChapterFFmpeg;
-@@ -149,6 +152,13 @@ protected:
+@@ -149,7 +152,15 @@ protected:
  
    StreamHdrType DetermineHdrType(AVStream* pStream);
  
@@ -687,6 +544,7 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
 +  std::unique_ptr<CBlurayDovi> m_blurayDovi;
 +  int m_blurayBase{-1}, m_blurayEnhancement{-1};
 +#endif
++  double m_blurayInitialStartTime{0.0};
 +
    CCriticalSection m_critSection;
    std::map<int, CDemuxStream*> m_streams;
@@ -710,7 +568,7 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
  protected:
    struct SPlane;
  
-@@ -351,4 +361,10 @@
+@@ -351,5 +361,11 @@
      std::chrono::steady_clock::time_point m_startWatchTime{};
      std::vector<PlaylistInformation> m_playedPlaylists;
      CCriticalSection m_statesLock;
@@ -739,7 +597,13 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
    {
      CLog::Log(LOGDEBUG, "CDVDInputStreamBluray - BD_EVENT_TITLE {}", m_event.param);
      const BLURAY_DISC_INFO* disc_info = bd_get_disc_info(m_bd);
-@@ -662,6 +664,7 @@
+@@ -632,4 +634,5 @@
+     break;
+ 
+   case BD_EVENT_PLAYITEM:
++    ArmSeamlessGlide();
+     CLog::Log(LOGDEBUG, "CDVDInputStreamBluray - BD_EVENT_PLAYITEM {}", m_event.param);
+@@ -662,6 +665,7 @@
      break;
  
    case BD_EVENT_PLAYLIST_STOP:
@@ -747,7 +611,7 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
      CLog::Log(LOGDEBUG, "CDVDInputStreamBluray - BD_EVENT_PLAYLIST_STOP: flush buffers");
      m_player->OnDiscNavResult(nullptr, BD_EVENT_PLAYLIST_STOP);
      break;
-@@ -707,7 +710,19 @@
+@@ -707,7 +711,19 @@
          case BD_EVENT_TITLE:
          case BD_EVENT_ANGLE:
          case BD_EVENT_PLAYLIST:
@@ -767,7 +631,7 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
            if(m_hold != HOLD_DATA)
            {
              m_hold = HOLD_HELD;
-@@ -1197,6 +1212,8 @@
+@@ -1197,6 +1213,8 @@
    if(!m_navmode || m_hold == HOLD_EXIT || m_hold == HOLD_ERROR)
      return NEXTSTREAM_NONE;
  
@@ -776,7 +640,7 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
    /* process any current event */
    ProcessEvent();
  
-@@ -1485,3 +1502,42 @@
+@@ -1485,4 +1502,43 @@
    return UpdateStackItem(item,
                           m_titleInfo ? std::chrono::milliseconds(m_titleInfo->duration / 90) : 0ms);
  }
@@ -847,7 +711,18 @@ index 541e2e4efb7283d7891a821ef9c1cae5760b7e70..626017a0d42d8b84a1d4f50ff8ed17c0
    if (packet)
    {
      // stream changed, update and open defaults
-@@ -2732,9 +2744,22 @@ bool CVideoPlayer::CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket
+@@ -1759,6 +1771,8 @@ void CVideoPlayer::Process()
+     // if the queues are full, no need to read more
+-    if ((!m_VideoPlayerAudio->AcceptsData() && m_CurrentAudio.id >= 0) ||
+-        (!m_VideoPlayerVideo->AcceptsData() && m_CurrentVideo.id >= 0))
++    const bool audioFull = (m_CurrentAudio.id < 0) || !m_VideoPlayerAudio->AcceptsData();
++    const bool videoFull = (m_CurrentVideo.id < 0) || !m_VideoPlayerVideo->AcceptsData();
++    const bool videoCritical = (m_CurrentVideo.id >= 0) && (m_processInfo->GetLevelVQ() > 150);
++    if ((audioFull && videoFull) || videoCritical)
+     {
+       if (m_playSpeed == DVD_PLAYSPEED_PAUSE &&
+           m_demuxerSpeed != DVD_PLAYSPEED_PAUSE)
+@@ -2732,10 +2744,23 @@ bool CVideoPlayer::CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket
      }
      else
      {

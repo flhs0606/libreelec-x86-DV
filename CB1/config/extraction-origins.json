@@ -46,7 +46,7 @@
     },
     "src/dvbridge_fel.c": {
       "source": "tools/dvbridge/dvbridge_fel.c",
-      "sha256": "c61bd7a7f2f7dba5b134ef27c15ea6fc959e5489959ba25cc0440037e41b6b28",
+      "sha256": "65aecab61b2d1f043b5b87fd9e5024e1784eb204a55c8b33b408ccd1f5723123",
       "patches": [
         "patches/kodi/kodi-9990-native-dv.patch",
         "patches/kodi/kodi-9993-fel-presentation-pairing.patch"
@@ -54,7 +54,7 @@
     },
     "src/dvbridge_fel.h": {
       "source": "tools/dvbridge/dvbridge_fel.h",
-      "sha256": "1d6983253efe4341e9068cfebb9af85ff872b9df37c3dc039fecef4bcd5ba7ad",
+      "sha256": "f3fa54afecc4fe926a8d8df0c5c0580f27f7b4461222f810148cb6b77f978ad5",
       "patches": [
         "patches/kodi/kodi-9990-native-dv.patch",
         "patches/kodi/kodi-9993-fel-presentation-pairing.patch"

@@ -1,25 +1,52 @@
 diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp
 --- a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp
 +++ b/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp
-@@ -665,8 +665,8 @@ bool CDVDVideoCodecFFmpeg::AddData(const DemuxPacket &packet)
+@@ -665,8 +665,37 @@ bool CDVDVideoCodecFFmpeg::AddData(const DemuxPacket &packet)
++#ifdef HAVE_DVBRIDGE
++  const int originalSize = avpkt->size;
++  if (m_dvFel)
++  {
++    // Locate the first 0x7E 0x01 EL tunnel NAL and truncate avpkt so BL decoder only sees pure BL + RPU
++    for (int i = 0; i < avpkt->size - 5; ++i)
++    {
++      if (avpkt->data[i] == 0 && avpkt->data[i + 1] == 0)
++      {
++        if (avpkt->data[i + 2] == 1 && avpkt->data[i + 3] == 0x7e && (avpkt->data[i + 4] & 7) == 1)
++        {
++          avpkt->size = i;
++          break;
++        }
++        if (i < avpkt->size - 6 && avpkt->data[i + 2] == 0 && avpkt->data[i + 3] == 1 &&
++            avpkt->data[i + 4] == 0x7e && (avpkt->data[i + 5] & 7) == 1)
++        {
++          avpkt->size = i;
++          break;
++        }
++      }
++    }
++  }
++#endif
++
    int ret = avcodec_send_packet(m_pCodecContext, avpkt);
  #ifdef HAVE_DVBRIDGE
++  if (m_dvFel)
++  {
++    avpkt->size = originalSize;
    // Submit once, only after BL accepted the packet (Kodi retries EAGAIN).
 -  if (ret == 0 && m_dvFel && !dvbridge_fel_submit(m_dvFel.get(), avpkt))
 -    m_dvFailed = true;
-+  if (ret == 0 && m_dvFel && avpkt->pts != AV_NOPTS_VALUE)
-+    dvbridge_fel_submit(m_dvFel.get(), avpkt);
++    if (ret == 0 && avpkt->pts != AV_NOPTS_VALUE)
++      dvbridge_fel_submit(m_dvFel.get(), avpkt);
++  }
  #endif
  
    //! @todo: properly handle avpkt side_data. this works around our improper use of the side_data
-@@ -710,19 +710,48 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecFFmpeg::GetPicture(VideoPicture* pVideoPicture)
+@@ -710,49 +710,110 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecFFmpeg::GetPicture(VideoPicture* pVideoPicture)
    if (m_dvFel)
    {
      if (m_dvFailed || dvbridge_fel_failed(m_dvFel.get()))
 -      return VC_ERROR;
 +    {
-+      CLog::Log(LOGWARNING, "CDVDVideoCodecFFmpeg::{} - dvbridge_fel failed, resetting and falling back to base layer", __FUNCTION__);
-+      dvbridge_fel_reset(m_dvFel.get());
 +      m_dvFailed = false;
 +    }
      auto emit = [&]() -> VCReturn
@@ -30,6 +57,7 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xb
        if (base->doviSourcePts == AV_NOPTS_VALUE)
 -        return VC_ERROR;
 +      {
++        m_dvWaitCount = 0;
 +        base->doviEnhancement.reset();
 +        pVideoPicture->CopyRef(*base);
 +        m_dvPending.pop_front();
@@ -38,14 +66,19 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xb
        AVFrame* enhancement = nullptr;
        int result = dvbridge_fel_take(m_dvFel.get(), base->doviSourcePts,
                                       &enhancement);
-+      if (result == 2)
++      if (result == 1 && enhancement)
 +      {
++        m_dvWaitCount = 0;
++        base->doviEnhancement = {enhancement, [](AVFrame* f) { av_frame_free(&f); }};
++        base->doviEnhancementBinding = base->doviMetadata.Binding();
++        pVideoPicture->CopyRef(*base);
 +        m_dvPending.pop_front();
-+        return VC_BUFFER;
++        return VC_PICTURE;
 +      }
        if (result < 0)
 -        return VC_ERROR;
 +      {
++        m_dvWaitCount = 0;
 +        if (dvbridge_fel_exhausted(m_dvFel.get()))
 +        {
 +          CLog::Log(LOGWARNING, "DV FEL: enhancement EOF with {} unpaired base pictures; "
@@ -54,16 +87,79 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xb
 +          m_dvPending.clear();
 +          return VC_EOF;
 +        }
-+        CLog::Log(LOGDEBUG, "DV FEL: un-paired enhancement at pts {}, smoothly emitting base layer",
-+                  base->doviSourcePts);
 +        base->doviEnhancement.reset();
 +        pVideoPicture->CopyRef(*base);
 +        m_dvPending.pop_front();
 +        return VC_PICTURE;
 +      }
        if (!result)
++      {
++        if (++m_dvWaitCount > 2 || m_dvPending.size() > 2)
++        {
++          m_dvWaitCount = 0;
++          base->doviEnhancement.reset();
++          pVideoPicture->CopyRef(*base);
++          m_dvPending.pop_front();
++          return VC_PICTURE;
++        }
          return VC_NONE;
++      }
++      m_dvWaitCount = 0;
        base->doviEnhancement = {enhancement, [](AVFrame* f) { av_frame_free(&f); }};
+       pVideoPicture->CopyRef(*base);
+       m_dvPending.pop_front();
+       return VC_PICTURE;
+     };
+     VCReturn paired = emit();
+     if (paired != VC_NONE)
+       return paired;
+     if (m_dvPending.size() >= 16)
+-      return VC_ERROR;
++    {
++      m_dvWaitCount = 0;
++      auto& oldest = m_dvPending.front();
++      oldest->doviEnhancement.reset();
++      pVideoPicture->CopyRef(*oldest);
++      m_dvPending.pop_front();
++      return VC_PICTURE;
++    }
+     auto base = std::make_shared<VideoPicture>();
+     base->Reset();
+     VCReturn result = GetBasePicture(base.get());
+     if (m_pCodecContext->hw_frames_ctx)
+     {
+       auto* frames = reinterpret_cast<AVHWFramesContext*>(m_pCodecContext->hw_frames_ctx->data);
+       if (!dvbridge_fel_device(m_dvFel.get(), frames->device_ref))
+-        return VC_ERROR;
++      {
++        if (result == VC_PICTURE)
++        {
++          pVideoPicture->CopyRef(*base);
++          return VC_PICTURE;
++        }
++      }
+     }
+     if (result == VC_PICTURE)
+       m_dvPending.push_back(std::move(base));
+     if (result == VC_EOF || (m_codecControlFlags & DVD_CODEC_CTRL_DRAIN))
+-      if (!dvbridge_fel_drain(m_dvFel.get()))
+-        return VC_ERROR;
++      dvbridge_fel_drain(m_dvFel.get());
+     paired = emit();
+     if (paired != VC_NONE)
+       return paired;
+     if (result == VC_EOF && !m_dvPending.empty())
+-      return VC_ERROR;
++    {
++      m_dvWaitCount = 0;
++      auto& oldest = m_dvPending.front();
++      oldest->doviEnhancement.reset();
++      pVideoPicture->CopyRef(*oldest);
++      m_dvPending.pop_front();
++      return VC_PICTURE;
++    }
+     return result == VC_PICTURE ? VC_BUFFER : result;
+   }
 diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt b/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt
 index 9a16cd320c512a5e955baeae407037730372bf44..09798c3bd835a1cb3976438d0756a5f28ad2f259 100644
 --- a/xbmc/cores/VideoPlayer/DVDDemuxers/CMakeLists.txt
@@ -134,3 +230,13 @@ index e3cc4b2ba8a53e660eb4428aa2b7879472791a68..2810175f56681f0d06270fd008001215
  
      if (ret < 0)
      {
+@@ -1435,5 +1474,9 @@ bool CDVDDemuxFFmpeg::SeekTime(double time, bool backwards, double* startpts)
+     if (ret >= 0)
+     {
++#ifdef HAVE_DVBRIDGE
++      if (m_blurayDovi)
++        m_blurayDovi->Reset();
++#endif
+       if (!(m_pFormatContext->iformat->flags & AVFMT_NOTIMESTAMPS))
+         m_seekToKeyFrame = true;
+       m_currentPts = DVD_NOPTS_VALUE;

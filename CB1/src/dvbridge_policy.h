@@ -40,6 +40,9 @@ enum dvbridge_policy_status {
 enum dvbridge_policy_status dvbridge_policy_validate(const struct dvbridge_policy *policy);
 bool dvbridge_identity_equal(const struct dvbridge_identity *a, const struct dvbridge_identity *b);
 
+/* Populate TV profile automatically from 32-byte Dolby VSVDB */
+bool dvbridge_policy_apply_vsvdb(struct dvbridge_tv_profile *tv, const uint8_t vsvdb[32]);
+
 #ifdef __cplusplus
 }
 #endif
