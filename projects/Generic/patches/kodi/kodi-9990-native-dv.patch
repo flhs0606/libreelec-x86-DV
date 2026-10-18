@@ -879,12 +879,11 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xb
 +  m_dvFel.reset();
 +  m_dvFailed = false;
 +  m_dvNativeOutput = false;
-+  m_dvWaitCount = 0;
 +#endif
    av_frame_free(&m_pFrame);
    av_frame_free(&m_pDecodedFrame);
    av_frame_free(&m_pFilterFrame);
-@@ -619,6 +663,12 @@
+@@ -619,6 +663,11 @@
    avpkt->side_data_elems = packet.iSideDataElems;
  
    int ret = avcodec_send_packet(m_pCodecContext, avpkt);
@@ -959,7 +958,7 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xb
  {
    if (!m_startedInput)
    {
-@@ -954,6 +1060,12 @@
+@@ -954,6 +1059,11 @@
  
  void CDVDVideoCodecFFmpeg::Reset()
  {
@@ -967,7 +966,6 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.cpp b/xb
 +  m_dvPending.clear();
 +  dvbridge_fel_reset(m_dvFel.get());
 +  m_dvFailed = false;
-+  m_dvWaitCount = 0;
 +#endif
    m_started = false;
    m_startedInput = false;
@@ -1051,7 +1049,7 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.h b/xbmc
  
  extern "C"
  {
-@@ -46,8 +50,22 @@
+@@ -46,8 +50,21 @@
  
    IHardwareDecoder* GetHWAccel() override;
    bool GetPictureCommon(VideoPicture* pVideoPicture) override;
@@ -1069,7 +1067,6 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecFFmpeg.h b/xbmc
 +  std::deque<std::shared_ptr<VideoPicture>> m_dvPending;
 +  bool m_dvFailed{false};
 +  bool m_dvNativeOutput{false};
-+  unsigned int m_dvWaitCount{0};
 +#endif
    void Dispose();
    CDVDVideoCodec::VCReturn HandleHwFatal();
@@ -1280,25 +1277,6 @@ diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Video/VAAPI.cpp b/xbmc/cores/Video
    vaapiFramesCtx->nb_attributes = 0;
    vaapiFramesCtx->nb_surfaces = m_videoSurfaces.Size();
    VASurfaceID *surfaceIds = (VASurfaceID*)av_malloc(vaapiFramesCtx->nb_surfaces *  sizeof(VASurfaceID));
-@@ -1036,10 +1050,16 @@ CDVDVideoCodec::VCReturn CDecoder::Decode(AVCodecContext* avctx, AVFrame* pFrame
-       }
-     }
- 
--    if (!m_inMsgEvent.Wait(2000ms))
-+    if (!m_inMsgEvent.Wait(drain ? 100ms : 2000ms))
-       break;
-   }
- 
-+  m_codecControl &= ~DVD_CODEC_CTRL_DRAIN;
-+  CLog::Log(LOGDEBUG, LOGVIDEO,
-+            "VAAPI::{} - output message wait expired (decoded: {}, proc: {}, free surfaces: {}), requesting more buffer",
-+            __FUNCTION__, decoded, processed, m_videoSurfaces.HasFree() ? "yes" : "no");
-+  return CDVDVideoCodec::VC_BUFFER;
-+
-   CLog::Log(LOGERROR,
-             "VAAPI::{} - timed out waiting for output message - decoded: {}, proc: {}, has free "
-             "surface: {}",
-
 diff --git a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h
 --- a/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h
 +++ b/xbmc/cores/VideoPlayer/DVDDemuxers/DVDDemux.h

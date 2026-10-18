@@ -2,7 +2,8 @@
 
 Guidance for Claude Code when working in this repository.
 - Always use Context7 for library/API documentation, code generation, or setup/configuration steps without explicit request.
-- Do not run build or compile commands unless explicitly requested.
+- Whenever I mention "检查log", "查log", "查下log", "看下日志", "看log", "还是卡", "依旧卡顿", "执行播放测试", or ask to diagnose playback issues, ALWAYS invoke the `kodi-diagnose` skill first.
+- Do not run build or compile commands unless explicitly requested (except within an explicitly authorized "播放测试循环").
 - Explain the conclusion and proposed approach before triggering any build.
 - All code comments must be written in rigorous, professional English (no Chinese in comments).
 

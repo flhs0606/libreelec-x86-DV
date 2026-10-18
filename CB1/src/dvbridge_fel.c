@@ -22,6 +22,19 @@ struct picture_order {
     bool seen;
 };
 
+static bool has_nal63(const uint8_t *data, int size)
+{
+    for (int i = 0; i < size - 4; ++i) {
+        if (data[i] == 0 && data[i+1] == 0) {
+            if (data[i+2] == 1 && ((data[i+3] >> 1) & 0x3f) == 63)
+                return true;
+            if (i < size - 5 && data[i+2] == 0 && data[i+3] == 1 && ((data[i+4] >> 1) & 0x3f) == 63)
+                return true;
+        }
+    }
+    return false;
+}
+
 static bool picture_identity(struct picture_order *order, const AVPacket *packet, int64_t *identity)
 {
     if (!order || !order->parser || !order->context || !packet)
@@ -218,22 +231,24 @@ static bool pump(struct dvbridge_fel *f)
     receive_frames(f);
     while (f->num_packets && f->num_frames < QUEUE_MAX) {
         AVPacket *packet = f->packets[0];
-        unsigned match = 0;
-        while (match < f->num_times && f->times[match].order != f->packet_order[0])
-            ++match;
-        if (match == f->num_times) {
-            if (f->num_times > 0 && f->num_packets > 4)
-                match = 0;
-            else if (f->draining)
-                match = 0;
-            else
-                break; /* A reference EL picture can precede its corresponding BL. */
-        }
-        if (match < f->num_times) {
-            packet->pts = f->times[match].pts;
-            --f->num_times;
-            memmove(f->times + match, f->times + match + 1,
-                    (f->num_times - match) * sizeof(*f->times));
+        if (packet->pts == AV_NOPTS_VALUE) {
+            unsigned match = 0;
+            while (match < f->num_times && f->times[match].order != f->packet_order[0])
+                ++match;
+            if (match == f->num_times) {
+                if (f->num_times > 0 && f->num_packets > 4)
+                    match = 0;
+                else if (f->draining)
+                    match = 0;
+                else
+                    break; /* A reference EL picture can precede its corresponding BL. */
+            }
+            if (match < f->num_times) {
+                packet->pts = f->times[match].pts;
+                --f->num_times;
+                memmove(f->times + match, f->times + match + 1,
+                        (f->num_times - match) * sizeof(*f->times));
+            }
         }
         packet->dts = AV_NOPTS_VALUE;
         int result = avcodec_send_packet(f->decoder, packet);
@@ -316,6 +331,19 @@ bool dvbridge_fel_submit(struct dvbridge_fel *f, const AVPacket *packet)
     f->times[time_idx].pts = packet->pts;
     if (time_idx == f->num_times)
         f->num_times++;
+
+    if (!has_nal63(packet->data, packet->size)) {
+        if (f->num_packets == QUEUE_MAX || packet->size <= 0 ||
+            (size_t)packet->size > PACKET_BYTES_MAX - f->packet_bytes)
+            return pump(f);
+        AVPacket *el_copy = av_packet_clone(packet);
+        if (!el_copy)
+            return false;
+        f->packet_order[f->num_packets] = packet->pts;
+        f->packet_bytes += el_copy->size;
+        f->packets[f->num_packets++] = el_copy;
+        return pump(f);
+    }
 
     AVPacket *copy = av_packet_clone(packet);
     if (!copy)
