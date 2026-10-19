@@ -59,6 +59,7 @@ struct creative_fit_cache {
 };
 
 #include "cb1_processing.h"
+#include "dvbridge_dovi.h"
 
 struct dvbridge_renderer {
     pl_gpu gpu;
@@ -71,6 +72,8 @@ struct dvbridge_renderer {
     bool processing_optimizations;
     uint32_t processing_failed_groups;
     struct cb1_processing processing;
+    struct dvbridge_dovi dovi;
+    struct pl_tone_map_function dovi_fn;
     struct pl_color_space reconstructed_color;
     struct dvbridge_hdr10_policy_output policy_pending, policy_committed;
     bool policy_ready, policy_has_committed;
@@ -664,6 +667,8 @@ struct dvbridge_renderer *dvbridge_renderer_create(pl_gpu gpu)
     if (!r)
         return NULL;
     r->gpu = gpu;
+    r->dovi_fn = dvbridge_dovi_tone_map_function;
+    r->dovi_fn.priv = &r->dovi;
     // Query just the operation used here. libplacebo's global subgroup flag
     // requires arithmetic/clustered features that this fragment hook never uses.
     pl_opengl gl = pl_opengl_get(gpu);
@@ -934,6 +939,16 @@ static bool render(struct dvbridge_renderer *r, const struct pl_frame *source,
             .gamut_expansion=true,.cb1_fp32_tone_lut=true,
         };
         params.color_map_params = &color_map;
+        if (policy->engine == DVBRIDGE_ENGINE_DOVI &&
+            dvbridge_dovi_select(&r->dovi, policy, metadata, bytes))
+        {
+            color_map.tone_mapping_function = &r->dovi_fn;
+            /* Part of the tone-map cache key: trims can change while L1 does not. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+            color_map.tone_mapping_param = (float)r->dovi.revision;
+#pragma GCC diagnostic pop
+        }
     }
     r->reconstructed_color = target.color;
     params.min_fbo_precision = 32;

@@ -1,0 +1,62 @@
+--- a/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVOutputSettings.h
++++ b/xbmc/cores/VideoPlayer/DVDCodecs/Video/DVOutputSettings.h
+@@ -31,6 +31,7 @@
+   double peak{0};
+   bool optimizedDV{true};
+   bool fastChroma{false};
++  bool doviEngine{true};
+   bool processingOptimizations{false};
+   uint64_t revision{1};
+ 
+@@ -44,7 +45,7 @@
+   {
+     return output == other.output && hdr10Source == other.hdr10Source && method == other.method && preset == other.preset &&
+         panel == other.panel && gamut == other.gamut && optimizedDV == other.optimizedDV &&
+-        fastChroma == other.fastChroma &&
++        fastChroma == other.fastChroma && doviEngine == other.doviEngine &&
+         processingOptimizations == other.processingOptimizations &&
+         std::bit_cast<uint64_t>(peak) == std::bit_cast<uint64_t>(other.peak);
+   }
+@@ -55,6 +56,7 @@
+     dvbridge_policy result{};
+     result.revision = revision;
+     result.enhancement = preset == 1 ? DVBRIDGE_ENHANCEMENT_INTENSE : DVBRIDGE_ENHANCEMENT_NATURAL;
++    result.engine = doviEngine ? DVBRIDGE_ENGINE_DOVI : DVBRIDGE_ENGINE_DEFAULT;
+     switch (output)
+     {
+       case OutputMode::Disabled: result.mode = DVBRIDGE_MODE_DISABLED; break;
+@@ -117,6 +119,7 @@
+     next.panel = settings->GetInt("dvbridge.tvpanel");
+     next.gamut = settings->GetInt("dvbridge.tvgamut");
+     next.fastChroma = settings->GetBool("dvbridge.fastchroma");
++    next.doviEngine = settings->GetBool("dvbridge.dovimode");
+   }
+   if (next.method < 0 || next.method > 1) next.method = 0;
+   if (next.preset < 0 || next.preset > 1) next.preset = 0;
+--- a/system/settings/settings.xml
++++ b/system/settings/settings.xml
+@@ -101,6 +101,10 @@
+           <requirement>HAVE_DVBRIDGE</requirement><level>2</level><default>false</default>
+           <control type="toggle" />
+         </setting>
++        <setting id="dvbridge.dovimode" type="boolean" label="40906" help="40907">
++          <requirement>HAVE_DVBRIDGE</requirement><level>0</level><default>true</default>
++          <control type="toggle" />
++        </setting>
+       </group>
+       <group id="1" label="14230">
+         <setting id="videoplayer.autoplaynextitem" type="list[integer]" label="13433" help="36152">
+--- a/addons/resource.language.en_gb/resources/strings.po
++++ b/addons/resource.language.en_gb/resources/strings.po
+@@ -26067,3 +26067,11 @@
+ msgid "Playback modes | Source: {0}"
+ msgstr ""
+ 
++
++msgctxt "#40906"
++msgid "Dolby Vision 参考引擎（dovi）"
++msgstr ""
++
++msgctxt "#40907"
++msgid "使用逆向还原的 dovi 标量引擎进行 RPU 解析、色调曲线生成与 trim 裁剪，替代 CB1 默认路径。下次播放生效。"
++msgstr ""

@@ -19,6 +19,9 @@ enum dvbridge_panel { DVBRIDGE_PANEL_UNSET, DVBRIDGE_PANEL_OLED, DVBRIDGE_PANEL_
 enum dvbridge_gamut {
     DVBRIDGE_GAMUT_UNSET, DVBRIDGE_GAMUT_BT709, DVBRIDGE_GAMUT_P3_D65, DVBRIDGE_GAMUT_BT2020
 };
+/* Tone-mapping engine selected for Dolby Vision output. DEFAULT keeps the CB1
+ * spline path; DOVI drives the reverse-engineered dovi_core reference curve. */
+enum dvbridge_engine { DVBRIDGE_ENGINE_DEFAULT = 0, DVBRIDGE_ENGINE_DOVI = 1 };
 struct dvbridge_tv_profile {
     double peak_nits;
     enum dvbridge_panel panel;
@@ -30,6 +33,8 @@ struct dvbridge_policy {
     enum dvbridge_mode mode;
     enum dvbridge_enhancement enhancement;
     struct dvbridge_tv_profile tv;
+    /* Appended last so existing initialisers keep their field layout. */
+    enum dvbridge_engine engine;
 };
 struct dvbridge_identity { uint64_t stream, picture, revision; };
 enum dvbridge_policy_status {

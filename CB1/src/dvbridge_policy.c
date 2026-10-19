@@ -9,6 +9,9 @@ enum dvbridge_policy_status dvbridge_policy_validate(const struct dvbridge_polic
         policy->enhancement < DVBRIDGE_ENHANCEMENT_NATURAL ||
         policy->enhancement > DVBRIDGE_ENHANCEMENT_INTENSE)
         return DVBRIDGE_POLICY_INVALID_VALUE;
+    if (policy->engine < DVBRIDGE_ENGINE_DEFAULT ||
+        policy->engine > DVBRIDGE_ENGINE_DOVI)
+        return DVBRIDGE_POLICY_INVALID_VALUE;
     const struct dvbridge_tv_profile *tv = &policy->tv;
     if (tv->panel < DVBRIDGE_PANEL_UNSET || tv->panel > DVBRIDGE_PANEL_LCD ||
         tv->gamut < DVBRIDGE_GAMUT_UNSET || tv->gamut > DVBRIDGE_GAMUT_BT2020 ||

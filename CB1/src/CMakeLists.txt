@@ -39,7 +39,68 @@ pkg_check_modules(DVDrm REQUIRED IMPORTED_TARGET libdrm)
 pkg_check_modules(DVVa REQUIRED IMPORTED_TARGET libva)
 add_library(dvbridge_core STATIC dvbridge_core.c dvbridge_placebo.c dvbridge_render.c
                                 dvbridge_gl_frame.c dvbridge_gl_pack.c dvbridge_fel.c dvbridge_dmabuf.c dvbridge_fel_vpp.c
-                                dvbridge_policy.c cb1_circuit.c dvbridge_creative.c cb1_processing.c)
+                                dvbridge_policy.c cb1_circuit.c dvbridge_creative.c cb1_processing.c
+                                dvbridge_dovi.c)
+
+target_sources(dvbridge_core PRIVATE
+  dovi_core/dovi_bridge.c
+  dovi_core/dovi_engine.c
+  dovi_core/align_to_byte.c
+  dovi_core/bitstream.c
+  dovi_core/byte_utils.c
+  dovi_core/color_matrix.c
+  dovi_core/composer_conversion.c
+  dovi_core/composer_registers.c
+  dovi_core/composer_validation.c
+  dovi_core/control_bindings.c
+  dovi_core/control_defaults.c
+  dovi_core/control_getters.c
+  dovi_core/control_graphics.c
+  dovi_core/control_infoframe.c
+  dovi_core/control_init.c
+  dovi_core/control_luminance.c
+  dovi_core/control_metadata.c
+  dovi_core/control_path.c
+  dovi_core/control_runtime.c
+  dovi_core/control_target.c
+  dovi_core/crc32.c
+  dovi_core/decoder_bindings.c
+  dovi_core/detect_mel.c
+  dovi_core/dm_commit.c
+  dovi_core/dm_commit_bindings.c
+  dovi_core/dm_extensions.c
+  dovi_core/dm_payload.c
+  dovi_core/dm_serialization.c
+  dovi_core/ext_blocks.c
+  dovi_core/kernel_maps.c
+  dovi_core/kernel_maps_bindings.c
+  dovi_core/luminance_pq.c
+  dovi_core/memory_query.c
+  dovi_core/parser_diagnostics.c
+  dovi_core/pivot_values.c
+  dovi_core/register_commit.c
+  dovi_core/resampling_filters.c
+  dovi_core/rpu_header.c
+  dovi_core/rpu_init.c
+  dovi_core/rpu_last_output.c
+  dovi_core/rpu_lifecycle.c
+  dovi_core/rpu_output.c
+  dovi_core/rpu_payload.c
+  dovi_core/rpu_push_data.c
+  dovi_core/rpu_setters.c
+  dovi_core/rpu_validation.c
+  dovi_core/spatial_validation.c
+  dovi_core/tone_controls.c
+  dovi_core/tone_curve.c
+  dovi_core/tone_curve_lut.c
+  dovi_core/tone_maps.c
+  dovi_core/tone_math.c
+  dovi_core/tone_parameters.c
+  dovi_core/trim_luminance.c
+  dovi_core/trim_reduction.c
+)
+target_include_directories(dvbridge_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dovi_core")
+
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/pack_gles300.vert" CB1_PACK_VERTEX)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/pack_gles300.frag" CB1_PACK_FRAGMENT)
 foreach(variable CB1_PACK_VERTEX CB1_PACK_FRAGMENT)
