@@ -60,3 +60,42 @@
 +msgctxt "#40907"
 +msgid "使用逆向还原的 dovi 标量引擎进行 RPU 解析、色调曲线生成与 trim 裁剪，替代 CB1 默认路径。下次播放生效。"
 +msgstr ""
+--- a/xbmc/cores/VideoPlayer/VideoRenderers/DVBridgeGLES.cpp
++++ b/xbmc/cores/VideoPlayer/VideoRenderers/DVBridgeGLES.cpp
+@@ -14,6 +14,7 @@
+ 
+ #include <EGL/egl.h>
+ #include <algorithm>
++#include <cstring>
+ #include <chrono>
+ #include <deque>
+ #include <GLES3/gl3.h>
+@@ -622,6 +623,18 @@
+ {
+   DVBRIDGE::StreamTelemetry::NativeStage({m_pendingIdentity.stream,m_pendingIdentity.picture,
+       m_pendingIdentity.revision},"Prepared");
++  // Report the engine decision once per stream so a fallback is never silent.
++  if (m_doviReportedStream != m_pendingIdentity.stream)
++  {
++    m_doviReportedStream = m_pendingIdentity.stream;
++    const char* dovi = dvbridge_renderer_dovi_status(m_renderer);
++    if (m_requested.doviEngine && dovi && std::strcmp(dovi, "ready") != 0)
++      CLog::Log(LOGWARNING, "DVBridge dovi engine unavailable ({}), using the CB1 default path", dovi);
++    else if (m_requested.doviEngine)
++      CLog::Log(LOGINFO, "DVBridge dovi engine active: reference tone curve");
++    else
++      CLog::Log(LOGINFO, "DVBridge dovi engine off by preference, using the CB1 default path");
++  }
+   if (m_auditPreparedSerial!=m_auditSerial && DVBRIDGE::DiagnosticsEnabled() &&
+       m_auditPrepared.Record(DVBRIDGE::DiagnosticNowMs(),"prepared",m_auditSerial))
+   {
+--- a/xbmc/cores/VideoPlayer/VideoRenderers/DVBridgeGLES.h
++++ b/xbmc/cores/VideoPlayer/VideoRenderers/DVBridgeGLES.h
+@@ -201,6 +201,7 @@
+   int m_auditSerial{},m_auditRequestedSerial{},m_auditPreparedSerial{},m_auditCommittedSerial{};
+   uint64_t m_prepares{0}, m_directFrames{0}, m_presentations{0}, m_failedPresentations{0};
+   uint64_t m_lastSummary{0}, m_lastReported{0};
++  uint64_t m_doviReportedStream{0};
+   bool m_firstFrame{true};
+   bool m_hdr10{false};
+   std::optional<dvbridge_hdr10_session> m_hdr10Session;

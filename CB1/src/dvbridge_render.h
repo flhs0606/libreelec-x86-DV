@@ -95,6 +95,10 @@ void dvbridge_renderer_set_optimized_dv(struct dvbridge_renderer *renderer, bool
 /* Next-picture input chroma filter for every CB1 circuit. Default false; luma is unchanged. */
 void dvbridge_renderer_set_fast_chroma(struct dvbridge_renderer *renderer, bool enabled);
 
+/* "ready" when the dovi reference curve drives this frame, otherwise the
+ * reason it does not ("off", "no-metadata", "no-l1", "curve-failed"). */
+const char *dvbridge_renderer_dovi_status(struct dvbridge_renderer *renderer);
+
 #define CB1_PROCESSING_OPTIMIZATIONS_API 1
 void dvbridge_renderer_set_processing_optimizations(struct dvbridge_renderer *renderer, bool enabled);
 #define CB1_OVERLAY_METADATA_API 1

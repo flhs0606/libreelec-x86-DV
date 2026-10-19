@@ -154,8 +154,8 @@
   "src/dvbridge_core.h": "0cc065b84dc21fe117779da54689239530ef52f382e6657a75ae6a4bb41a66b8",
   "src/dvbridge_creative.c": "28e6cad6971bf0dadae00eebc007fa5c96badf3795ac5697a6c8a15afba0f984",
   "src/dvbridge_creative.h": "46a67f60bdc8712563bda77d01e33a63f90cf6627d8fe5d60f20cdf6fa7926a2",
-  "src/dvbridge_dovi.c": "62b07a4c5ffbff77ff47acb224d464eac14f89d628ad0cb7432f8b0abce75f97",
-  "src/dvbridge_dovi.h": "71aacb7a7cbb400d91be5c50c9a98f0b1051bac73eefe1e916e29fa25e8edb72",
+  "src/dvbridge_dovi.c": "83f72ac216a656f4523baa28e18a5142ae0285b70456a72375bc51cd13f1b7a5",
+  "src/dvbridge_dovi.h": "f147f1e2795781bccce9135f35052f2008c9b20dab1d456463f06aa67a36aa68",
   "src/dvbridge_fel_vpp.c": "551738dfbc4153c230b571f59816933cad4d8725251f23cddf7e32dc742f084c",
   "src/dvbridge_fel_vpp.h": "3bd52cc2da5ea249c6c27856a6e41b07e43fab7cdf49d15a7aab7a880cd052eb",
   "src/dvbridge_gl_frame.c": "ea47bc2d073ed27c3c9c627357584a498f905e36b4117bd7b6d4e8a119c47f62",
@@ -167,6 +167,6 @@
   "src/dvbridge_placebo.h": "79ea232237e3e708f9e1f45c248749a4104854f3dc057a8dcf8493a92d111534",
   "src/dvbridge_policy.c": "05e74a00b10ac905e6ef746a4a28cc94d6f403b296d753939c37957807afc7ee",
   "src/dvbridge_policy.h": "074dda5b2ee2d230809aff2ace55a7343d74e473a6d46b96323f5f333d96e74a",
-  "src/dvbridge_render.c": "e1e360cc6bf6080e93f27ff5851f361ca7413ffe3c08fe42f12ac1d9cc5af83b",
-  "src/dvbridge_render.h": "7cc02aa8f8490ba292e3fb60c27803e826b78e71532eacd3ca4b0e9e5c555f9d"
+  "src/dvbridge_render.c": "8deec7cc8b8c8c08381ae229cee20a7a6d30284c8b3da9e3675c377c71369977",
+  "src/dvbridge_render.h": "9f796132cdc7a39b271c69add5e58f04585965a34ba6a1375ba2a61d397324b1"
 }

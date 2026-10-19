@@ -726,6 +726,11 @@ void dvbridge_renderer_set_optimized_dv(struct dvbridge_renderer *r, bool enable
     if (r) r->optimized_dv = enabled;
 }
 
+const char *dvbridge_renderer_dovi_status(struct dvbridge_renderer *r)
+{
+    return dvbridge_dovi_state_name(r ? r->dovi.state : DVBRIDGE_DOVI_OFF);
+}
+
 void dvbridge_renderer_set_fast_chroma(struct dvbridge_renderer *r, bool enabled)
 {
     if (r) r->fast_chroma = enabled;
@@ -948,6 +953,10 @@ static bool render(struct dvbridge_renderer *r, const struct pl_frame *source,
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
             color_map.tone_mapping_param = (float)r->dovi.revision;
 #pragma GCC diagnostic pop
+        }
+        else if (policy->engine != DVBRIDGE_ENGINE_DOVI)
+        {
+            dvbridge_dovi_disable(&r->dovi);
         }
     }
     r->reconstructed_color = target.color;

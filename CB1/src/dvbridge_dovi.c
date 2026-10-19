@@ -49,6 +49,7 @@ bool dvbridge_dovi_prepare(struct dvbridge_dovi* state,
 
   state->ready = false;
   state->target_max_pq = 0;
+  state->state = DVBRIDGE_DOVI_CURVE_FAILED;
 
   /* The curve generator only accepts a meaningful source range inside the
    * 12-bit PQ domain, and a target peak above zero. */
@@ -68,6 +69,7 @@ bool dvbridge_dovi_prepare(struct dvbridge_dovi* state,
   state->revision = dovi_hash(values, sizeof(values) / sizeof(values[0]));
   state->target_max_pq = tgt_max_pq;
   state->ready = true;
+  state->state = DVBRIDGE_DOVI_READY;
   return true;
 }
 
@@ -77,13 +79,21 @@ bool dvbridge_dovi_select(struct dvbridge_dovi* state,
                           size_t bytes)
 {
   if (!state || !policy || !metadata || bytes < sizeof(AVDOVIMetadata))
+  {
+    if (state)
+    {
+      state->ready = false;
+      state->state = DVBRIDGE_DOVI_NO_METADATA;
+    }
     return false;
+  }
 
   const AVDOVIMetadata* md = (const AVDOVIMetadata*)metadata;
   const AVDOVIDmData* l1 = av_dovi_find_level(md, 1);
   if (!l1 || !l1->l1.max_pq || l1->l1.max_pq > 4095 || l1->l1.min_pq > l1->l1.max_pq)
   {
     state->ready = false;
+    state->state = DVBRIDGE_DOVI_NO_L1;
     return false;
   }
 
@@ -148,6 +158,27 @@ static void dovi_tone_map(float* lut, const struct pl_tone_map_params* params)
       y = params->output_max;
     lut[i] = y;
   }
+}
+
+const char* dvbridge_dovi_state_name(enum dvbridge_dovi_state state)
+{
+  switch (state)
+  {
+    case DVBRIDGE_DOVI_READY: return "ready";
+    case DVBRIDGE_DOVI_NO_METADATA: return "no-metadata";
+    case DVBRIDGE_DOVI_NO_L1: return "no-l1";
+    case DVBRIDGE_DOVI_CURVE_FAILED: return "curve-failed";
+    case DVBRIDGE_DOVI_OFF: break;
+  }
+  return "off";
+}
+
+void dvbridge_dovi_disable(struct dvbridge_dovi* state)
+{
+  if (!state)
+    return;
+  state->ready = false;
+  state->state = DVBRIDGE_DOVI_OFF;
 }
 
 const struct pl_tone_map_function dvbridge_dovi_tone_map_function = {
