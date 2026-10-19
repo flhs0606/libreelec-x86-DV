@@ -70,32 +70,53 @@
  #include <chrono>
  #include <deque>
  #include <GLES3/gl3.h>
-@@ -622,6 +623,18 @@
- {
-   DVBRIDGE::StreamTelemetry::NativeStage({m_pendingIdentity.stream,m_pendingIdentity.picture,
-       m_pendingIdentity.revision},"Prepared");
+@@ -632,6 +633,22 @@
+   }
+ }
+ 
++void CDVBridgeGLES::ReportDoviEngine()
++{
 +  // Report the engine decision once per stream so a fallback is never silent.
-+  if (m_doviReportedStream != m_pendingIdentity.stream)
-+  {
-+    m_doviReportedStream = m_pendingIdentity.stream;
-+    const char* dovi = dvbridge_renderer_dovi_status(m_renderer);
-+    if (m_requested.doviEngine && dovi && std::strcmp(dovi, "ready") != 0)
-+      CLog::Log(LOGWARNING, "DVBridge dovi engine unavailable ({}), using the CB1 default path", dovi);
-+    else if (m_requested.doviEngine)
-+      CLog::Log(LOGINFO, "DVBridge dovi engine active: reference tone curve");
-+    else
-+      CLog::Log(LOGINFO, "DVBridge dovi engine off by preference, using the CB1 default path");
-+  }
-   if (m_auditPreparedSerial!=m_auditSerial && DVBRIDGE::DiagnosticsEnabled() &&
-       m_auditPrepared.Record(DVBRIDGE::DiagnosticNowMs(),"prepared",m_auditSerial))
-   {
++  // Called after presentation: the curve is only selected during the first render.
++  if (m_doviReportedStream == m_pendingIdentity.stream)
++    return;
++  m_doviReportedStream = m_pendingIdentity.stream;
++  const char* dovi = dvbridge_renderer_dovi_status(m_renderer);
++  if (m_requested.doviEngine && dovi && std::strcmp(dovi, "ready") != 0)
++    CLog::Log(LOGWARNING, "DVBridge dovi engine unavailable ({}), using the CB1 default path", dovi);
++  else if (m_requested.doviEngine)
++    CLog::Log(LOGINFO, "DVBridge dovi engine active: reference tone curve");
++  else
++    CLog::Log(LOGINFO, "DVBridge dovi engine off by preference, using the CB1 default path");
++}
++
+ void CDVBridgeGLES::Summary(const char* event)
+ {
+   if (!DVBRIDGE::DiagnosticsEnabled() || m_lastReported == m_prepares)
+@@ -1418,6 +1435,7 @@
+ 
+ bool CDVBridgeGLES::Presented(bool success)
+ {
++  ReportDoviEngine();
+   if (m_live) return Presented(success,m_submission);
+   const bool committed = success && m_prepared && m_packed && dvbridge_render_commit(m_renderer);
+   CountPresentation(committed);
+@@ -1456,6 +1474,7 @@
+ bool CDVBridgeGLES::Presented(bool success, const Submission& submission)
+ {
+   if (!m_live) return Presented(success);
++  ReportDoviEngine();
+   // A delayed callback must not consume or cancel a newer resolve.
+   if (!submission.sequence || submission.sequence != m_submission.sequence ||
+       submission.target != m_submission.target ||
 --- a/xbmc/cores/VideoPlayer/VideoRenderers/DVBridgeGLES.h
 +++ b/xbmc/cores/VideoPlayer/VideoRenderers/DVBridgeGLES.h
-@@ -201,6 +201,7 @@
+@@ -201,6 +201,8 @@
    int m_auditSerial{},m_auditRequestedSerial{},m_auditPreparedSerial{},m_auditCommittedSerial{};
    uint64_t m_prepares{0}, m_directFrames{0}, m_presentations{0}, m_failedPresentations{0};
    uint64_t m_lastSummary{0}, m_lastReported{0};
 +  uint64_t m_doviReportedStream{0};
++  void ReportDoviEngine();
    bool m_firstFrame{true};
    bool m_hdr10{false};
    std::optional<dvbridge_hdr10_session> m_hdr10Session;
